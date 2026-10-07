@@ -1,15 +1,51 @@
-# Binaries
+# Binaries and executables
+reconlens
+reconlens.exe
 subscan
 subscan.exe
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binaries and profiles
+*.test
+*.out
+*.prof
 
 # Build output
 dist/
 
-# Local result files
+# Local result and test artifacts
 results.json
 results.txt
+reconlens-*.json
+reconlens-*.txt
 subscan-*.json
 subscan-*.txt
+test_results.json
+test_results.txt
+test_domains.txt
+
+# Temporary and log files
+*.tmp
+*.log
+*.db
+*.db-wal
+*.db-shm
+
+# Environment and secrets
+.env
+.env.local
+.env.*.local
 
 # OS / editor noise
 .DS_Store
+.idea/
+.vscode/
+*.swp
+
+# Frontend artifacts
+web/node_modules/
+web/dist/

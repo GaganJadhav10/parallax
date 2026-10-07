@@ -5,81 +5,22 @@ import (
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"time"
+
+	"github.com/lumiaurora/subscan/internal/models"
 )
 
-type Report struct {
-	Domain          string      `json:"domain"`
-	Timestamp       time.Time   `json:"timestamp"`
-	TotalFound      int         `json:"total_found"`
-	ResolvedEnabled bool        `json:"resolved_enabled"`
-	Metadata        RunMetadata `json:"metadata"`
-	Subdomains      []Subdomain `json:"subdomains"`
-}
+// Aliases linking output structures to central models
+type Report = models.Report
+type BatchReport = models.BatchReport
+type BatchMetadata = models.BatchMetadata
+type TargetFailure = models.TargetFailure
+type RunMetadata = models.RunMetadata
+type SourceReference = models.SourceReference
+type FailedSource = models.FailedSource
+type SourceTiming = models.SourceTiming
+type Subdomain = models.Subdomain
 
-type BatchReport struct {
-	Timestamp       time.Time       `json:"timestamp"`
-	TotalTargets    int             `json:"total_targets"`
-	ResolvedEnabled bool            `json:"resolved_enabled"`
-	Metadata        BatchMetadata   `json:"metadata"`
-	Results         []Report        `json:"results"`
-	FailedTargets   []TargetFailure `json:"failed_targets,omitempty"`
-}
-
-type BatchMetadata struct {
-	StartedAt         time.Time `json:"started_at"`
-	CompletedAt       time.Time `json:"completed_at"`
-	DurationMS        int64     `json:"duration_ms"`
-	SuccessfulTargets int       `json:"successful_targets"`
-	FailedTargets     int       `json:"failed_targets"`
-}
-
-type TargetFailure struct {
-	Domain string `json:"domain"`
-	Error  string `json:"error"`
-}
-
-type RunMetadata struct {
-	StartedAt        time.Time         `json:"started_at"`
-	CompletedAt      time.Time         `json:"completed_at"`
-	DurationMS       int64             `json:"duration_ms"`
-	RawResults       int               `json:"raw_results"`
-	UniqueSubdomains int               `json:"unique_subdomains"`
-	FinalSubdomains  int               `json:"final_subdomains"`
-	WildcardFiltered int               `json:"wildcard_filtered,omitempty"`
-	EnabledSources   []SourceReference `json:"enabled_sources"`
-	FailedSources    []FailedSource    `json:"failed_sources,omitempty"`
-	SourceTimings    []SourceTiming    `json:"source_timings"`
-}
-
-type SourceReference struct {
-	ID   string `json:"id"`
-	Name string `json:"name"`
-}
-
-type FailedSource struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Health     string `json:"health"`
-	Error      string `json:"error"`
-	DurationMS int64  `json:"duration_ms"`
-}
-
-type SourceTiming struct {
-	ID         string `json:"id"`
-	Name       string `json:"name"`
-	Status     string `json:"status"`
-	Candidates int    `json:"candidates"`
-	DurationMS int64  `json:"duration_ms"`
-}
-
-type Subdomain struct {
-	Name    string   `json:"name"`
-	Sources []string `json:"sources"`
-	IPs     []string `json:"ips,omitempty"`
-	CNAMEs  []string `json:"cnames,omitempty"`
-}
-
+// WriteTXT exports a list of subdomain names as a plaintext line-delimited file.
 func WriteTXT(path string, subdomains []string) error {
 	if err := ensureParentDir(path); err != nil {
 		return err
@@ -101,6 +42,7 @@ func WriteTXT(path string, subdomains []string) error {
 	return writer.Flush()
 }
 
+// WriteBatchTXT exports batch target results in CSV format (domain,subdomain).
 func WriteBatchTXT(path string, reports []Report) error {
 	if err := ensureParentDir(path); err != nil {
 		return err
@@ -124,6 +66,7 @@ func WriteBatchTXT(path string, reports []Report) error {
 	return writer.Flush()
 }
 
+// WriteJSON serializes the given reconnaissance payload to indented JSON.
 func WriteJSON(path string, payload any) error {
 	if err := ensureParentDir(path); err != nil {
 		return err

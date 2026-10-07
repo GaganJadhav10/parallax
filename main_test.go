@@ -11,9 +11,9 @@ import (
 
 func TestSelectSourcesIncludeExclude(t *testing.T) {
 	registry := []sourceDefinition{
-		{id: "alpha", name: "Alpha", aliases: []string{"alpha"}},
-		{id: "beta", name: "Beta", aliases: []string{"beta"}},
-		{id: "gamma", name: "Gamma", aliases: []string{"gamma"}, enabled: func() bool { return false }, enableHint: "missing key"},
+		{ID: "alpha", Name: "Alpha", Aliases: []string{"alpha"}},
+		{ID: "beta", Name: "Beta", Aliases: []string{"beta"}},
+		{ID: "gamma", Name: "Gamma", Aliases: []string{"gamma"}, Enabled: func() bool { return false }, EnableHint: "missing key"},
 	}
 
 	selected, err := selectSources(registry, []string{"alpha", "beta"}, []string{"beta"})
@@ -21,7 +21,7 @@ func TestSelectSourcesIncludeExclude(t *testing.T) {
 		t.Fatalf("selectSources returned error: %v", err)
 	}
 
-	if len(selected) != 1 || selected[0].id != "alpha" {
+	if len(selected) != 1 || selected[0].ID != "alpha" {
 		t.Fatalf("expected only alpha to remain after exclusion")
 	}
 
@@ -48,16 +48,16 @@ func TestParseCSVListDeduplicates(t *testing.T) {
 func TestAggregateSourceEntriesTracksAttribution(t *testing.T) {
 	results := []sourceResult{
 		{
-			source:  sourceDefinition{name: "crt.sh"},
-			entries: []string{"WWW.example.com", "*.api.example.com", "invalid.org"},
+			Source:  sourceDefinition{Name: "crt.sh"},
+			Entries: []string{"WWW.example.com", "*.api.example.com", "invalid.org"},
 		},
 		{
-			source:  sourceDefinition{name: "Cert Spotter"},
-			entries: []string{"api.example.com", "mail.example.com", "mail.example.com"},
+			Source:  sourceDefinition{Name: "Cert Spotter"},
+			Entries: []string{"api.example.com", "mail.example.com", "mail.example.com"},
 		},
 		{
-			source: sourceDefinition{name: "AlienVault OTX"},
-			err:    errSentinel{},
+			Source: sourceDefinition{Name: "AlienVault OTX"},
+			Err:    errSentinel{},
 		},
 	}
 

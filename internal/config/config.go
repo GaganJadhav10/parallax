@@ -9,10 +9,18 @@ import (
 )
 
 type File struct {
-	OTXAPIKey    string   `json:"otx_api_key"`
-	VTAPIKey     string   `json:"vt_api_key"`
-	ShodanAPIKey string   `json:"shodan_api_key"`
-	Defaults     Defaults `json:"defaults"`
+	DatabasePath string       `json:"database_path,omitempty"`
+	OTXAPIKey    string       `json:"otx_api_key"`
+	VTAPIKey     string       `json:"vt_api_key"`
+	ShodanAPIKey string       `json:"shodan_api_key"`
+	Server       ServerConfig `json:"server,omitempty"`
+	Defaults     Defaults     `json:"defaults"`
+}
+
+type ServerConfig struct {
+	Host        string   `json:"host,omitempty"`
+	Port        int      `json:"port,omitempty"`
+	CORSOrigins []string `json:"cors_origins,omitempty"`
 }
 
 type Defaults struct {
@@ -67,7 +75,25 @@ func DefaultPath() (string, error) {
 		return "", err
 	}
 
-	return filepath.Join(configDir, "subscan", "config.json"), nil
+	reconlensPath := filepath.Join(configDir, "reconlens", "config.json")
+	if _, err := os.Stat(reconlensPath); err == nil {
+		return reconlensPath, nil
+	}
+
+	subscanPath := filepath.Join(configDir, "subscan", "config.json")
+	if _, err := os.Stat(subscanPath); err == nil {
+		return subscanPath, nil
+	}
+
+	return reconlensPath, nil
+}
+
+func DefaultDatabasePath() (string, error) {
+	configDir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+	return filepath.Join(configDir, "reconlens", "reconlens.db"), nil
 }
 
 func expandPath(path string) (string, error) {

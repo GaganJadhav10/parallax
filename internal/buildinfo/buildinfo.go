@@ -7,19 +7,19 @@ import (
 )
 
 var (
-	version = "dev"
+	version = "0.2.0-dev"
 	commit  = "none"
 	date    = "unknown"
 	builtBy = "local"
 )
 
 type Info struct {
-	Version  string
-	Commit   string
-	Date     string
-	BuiltBy  string
-	Go       string
-	Platform string
+	Version  string `json:"version"`
+	Commit   string `json:"commit"`
+	Date     string `json:"date"`
+	BuiltBy  string `json:"built_by"`
+	Go       string `json:"go_version"`
+	Platform string `json:"platform"`
 }
 
 func Current() Info {
@@ -35,7 +35,7 @@ func Current() Info {
 
 func (info Info) String() string {
 	parts := []string{
-		fmt.Sprintf("subscan %s", info.Version),
+		fmt.Sprintf("ReconLens v%s", info.Version),
 		fmt.Sprintf("commit=%s", info.Commit),
 		fmt.Sprintf("built=%s", info.Date),
 		fmt.Sprintf("builder=%s", info.BuiltBy),
@@ -44,4 +44,17 @@ func (info Info) String() string {
 	}
 
 	return strings.Join(parts, " ")
+}
+
+func (info Info) Detailed() string {
+	var sb strings.Builder
+	sb.WriteString(fmt.Sprintf("ReconLens v%s\n", info.Version))
+	sb.WriteString("Passive Reconnaissance & OSINT Intelligence\n")
+	sb.WriteString("Based on subscan by Mikael Nurminen (MIT License)\n\n")
+	sb.WriteString(fmt.Sprintf("  Version:  v%s\n", info.Version))
+	sb.WriteString(fmt.Sprintf("  Commit:   %s\n", info.Commit))
+	sb.WriteString(fmt.Sprintf("  Built:    %s\n", info.Date))
+	sb.WriteString(fmt.Sprintf("  Go:       %s\n", info.Go))
+	sb.WriteString(fmt.Sprintf("  Platform: %s\n", info.Platform))
+	return sb.String()
 }
