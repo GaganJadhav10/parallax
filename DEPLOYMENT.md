@@ -1,14 +1,14 @@
-# ReconLens Production Deployment Guide
+# Parallax Production Deployment Guide
 
-**ReconLens: Passive Reconnaissance & OSINT Intelligence**
+**Parallax: Passive Reconnaissance & OSINT Intelligence**
 
-This guide provides instructions for deploying the ReconLens Web Dashboard and the ReconLens Go REST API server to production environments.
+This guide provides instructions for deploying the Parallax Web Dashboard and the Parallax Go REST API server to production environments.
 
 ---
 
 ## 1. Architecture Overview
 
-ReconLens is designed with a decoupled architecture where the browser frontend and reconnaissance backend are deployed independently:
+Parallax is designed with a decoupled architecture where the browser frontend and reconnaissance backend are deployed independently:
 
 ```
 User Browser
@@ -16,7 +16,7 @@ User Browser
      │ HTTPS
      ▼
 Netlify (Global Edge CDN)
-ReconLens React/TypeScript Dashboard (SPA)
+Parallax React/TypeScript Dashboard (SPA)
      │
      │ HTTPS REST + SSE Streaming
      ▼
@@ -24,7 +24,7 @@ Reverse Proxy (Caddy / Nginx / Cloudflare)
      │
      │ HTTP (localhost / internal network)
      ▼
-ReconLens Go API Server (reconlens serve)
+Parallax Go API Server (parallax serve)
      │
      ▼
 Reconnaissance Engine (internal/engine)
@@ -33,7 +33,7 @@ Reconnaissance Engine (internal/engine)
 Passive OSINT Providers (10 sources)
      │
      ▼
-Persistent SQLite Database (/var/lib/reconlens/reconlens.db)
+Persistent SQLite Database (/var/lib/parallax/parallax.db)
 ```
 
 - **Frontend**: Lightweight React/TypeScript Single Page Application hosted on Netlify Edge CDN.
@@ -45,7 +45,7 @@ Persistent SQLite Database (/var/lib/reconlens/reconlens.db)
 ## 2. Frontend Deployment (Netlify)
 
 ### A. Repository Configuration
-The frontend source code is located in the `web/` directory. ReconLens includes a root-level `netlify.toml` and `web/public/_redirects` configured for automated builds.
+The frontend source code is located in the `web/` directory. Parallax includes a root-level `netlify.toml` and `web/public/_redirects` configured for automated builds.
 
 `netlify.toml` settings:
 - **Base directory**: `web`
@@ -54,7 +54,7 @@ The frontend source code is located in the `web/` directory. ReconLens includes 
 - **Node version**: `20`
 
 ### B. Single Page Application (SPA) Fallback
-Because ReconLens uses client-side routing via React Router (`/`, `/scans/new`, `/scans/:id`, `/history`, `/compare`, `/reports`, `/sources`, `/about`), all direct browser navigations and refreshes are redirected to `/index.html` with HTTP status `200` via:
+Because Parallax uses client-side routing via React Router (`/`, `/scans/new`, `/scans/:id`, `/history`, `/compare`, `/reports`, `/sources`, `/about`), all direct browser navigations and refreshes are redirected to `/index.html` with HTTP status `200` via:
 ```toml
 [[redirects]]
   from = "/*"
@@ -68,9 +68,86 @@ In the Netlify dashboard under **Site configuration > Environment variables**, d
 
 | Variable | Description | Example |
 |---|---|---|
-| `VITE_API_BASE_URL` | Public HTTPS URL of the ReconLens Go API | `https://api.reconlens.io` |
+| `VITE_API_BASE_URL` | Public HTTPS URL of the Parallax Go API | `https://api.parallax.io` |
 
 > **IMPORTANT**: The API URL must use `https://`. Do not include a trailing slash.
+
+---
+
+## 2b. Zero-Cost Deployment (Netlify + Render)
+
+Parallax can run end to end without paying anything. The frontend is a static
+bundle, which free CDNs host well; the backend is where free tiers bite.
+
+### The one trade-off you are accepting
+
+Scan history lives in SQLite on the backend's local disk. **No major free
+container tier offers a persistent disk** — Render's free plan explicitly cannot
+attach one, Fly.io retired its free allowance for new accounts in October 2024,
+and Koyeb's free instances cannot mount volumes. On a free backend:
+
+- Scans run normally and results display normally.
+- **History, Reports and Compare are emptied whenever the service restarts,
+  redeploys, or wakes from sleep.**
+- Render free services sleep after ~15 minutes idle; the next request takes up
+  to a minute while the container wakes.
+
+If persistent history matters, the cheapest fixes are a Render paid instance
+with a 1 GB disk at `/data`, or an Oracle Cloud Always Free ARM VM (genuinely
+free and persistent, but it requires card verification and manual setup — follow
+section 3 for that route).
+
+### Step 1 — Deploy the backend to Render
+
+1. Push this repository to GitHub.
+2. At [dashboard.render.com](https://dashboard.render.com) choose **New → Blueprint**
+   and point it at your repository. Render reads [`render.yaml`](render.yaml) and
+   creates the `parallax-api` Docker service on the free plan.
+3. Leave `PARALLAX_CORS_ORIGINS` blank for now — you do not have a frontend URL yet.
+4. Wait for the build, then note the service URL, e.g. `https://parallax-api.onrender.com`.
+5. Confirm it is alive:
+   ```bash
+   curl https://parallax-api.onrender.com/api/health
+   ```
+
+The image is built from [`Dockerfile`](Dockerfile): a static CGO-free binary on
+`distroless/static`. It honours `$PORT`, so the same image also runs unmodified
+on Railway, Koyeb, Fly.io and Cloud Run.
+
+### Step 2 — Deploy the frontend to Netlify
+
+1. At [app.netlify.com](https://app.netlify.com) choose **Add new site → Import an
+   existing project** and select the same repository. `netlify.toml` already sets
+   the base directory, build command and SPA fallback.
+2. Before the first build, set the environment variable under
+   **Site configuration → Environment variables**:
+
+   | Variable | Value |
+   |---|---|
+   | `VITE_API_BASE_URL` | `https://parallax-api.onrender.com` |
+
+   This is read at **build time** and baked into the bundle, so it must be set
+   before you build — changing it later requires a redeploy.
+3. Deploy, then note the site URL, e.g. `https://parallax.netlify.app`.
+
+### Step 3 — Close the CORS loop
+
+The backend rejects every browser origin by default. Back in Render, set:
+
+| Variable | Value |
+|---|---|
+| `PARALLAX_CORS_ORIGINS` | `https://parallax.netlify.app` |
+
+Save, let the service redeploy, and reload the dashboard. The header pill should
+read **engine** in green. If it reads **offline**, the browser console will show
+a CORS error naming the origin the backend refused — paste that exact origin,
+with no trailing slash, into the variable.
+
+### Optional — provider API keys
+
+`VT_API_KEY`, `SHODAN_API_KEY` and `OTX_API_KEY` are read server-side only. The
+other 8 providers need no credentials, so the deployment is fully functional
+without any of them.
 
 ---
 
@@ -83,36 +160,36 @@ Compile the binary for the target architecture or download from releases:
 
 ```bash
 # Cross-compile for Linux 64-bit
-GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o reconlens main.go
+GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o parallax main.go
 
 # Install on Linux server
-sudo mv reconlens /usr/local/bin/
-sudo chmod +x /usr/local/bin/reconlens
+sudo mv parallax /usr/local/bin/
+sudo chmod +x /usr/local/bin/parallax
 ```
 
 ### B. Dedicated User and Storage Directory
 Create a dedicated system user and persistent directory for the SQLite database:
 
 ```bash
-sudo useradd -r -s /bin/false reconlens
-sudo mkdir -p /var/lib/reconlens
-sudo chown -R reconlens:reconlens /var/lib/reconlens
-sudo chmod 700 /var/lib/reconlens
+sudo useradd -r -s /bin/false parallax
+sudo mkdir -p /var/lib/parallax
+sudo chown -R parallax:parallax /var/lib/parallax
+sudo chmod 700 /var/lib/parallax
 ```
 
 ---
 
 ## 4. Environment Variables Reference
 
-Configure server settings via environment variables (e.g. in `/etc/reconlens/reconlens.env` or systemd service):
+Configure server settings via environment variables (e.g. in `/etc/parallax/parallax.env` or systemd service):
 
 | Variable | Required | Default | Description |
 |---|---|---|---|
-| `RECONLENS_HOST` | No | `127.0.0.1` | Network bind address. Set to `127.0.0.1` when using a local reverse proxy, or `0.0.0.0` for containerized environments. |
-| `RECONLENS_PORT` | No | `8080` | Port for the HTTP API server. |
-| `RECONLENS_DB` | **Yes** | User config dir | Absolute path to SQLite database on **persistent storage**. |
-| `RECONLENS_CORS_ORIGINS` | **Yes** | `""` | Comma-separated list of allowed frontend origins (e.g. `https://reconlens.netlify.app`). |
-| `RECONLENS_MAX_CONCURRENT_SCANS` | No | `10` | Maximum active concurrent scans allowed before returning `429 Too Many Requests`. |
+| `PARALLAX_HOST` | No | `127.0.0.1` | Network bind address. Set to `127.0.0.1` when using a local reverse proxy, or `0.0.0.0` for containerized environments. |
+| `PARALLAX_PORT` | No | `8080` | Port for the HTTP API server. |
+| `PARALLAX_DB` | **Yes** | User config dir | Absolute path to SQLite database on **persistent storage**. |
+| `PARALLAX_CORS_ORIGINS` | **Yes** | `""` | Comma-separated list of allowed frontend origins (e.g. `https://parallax.netlify.app`). |
+| `PARALLAX_MAX_CONCURRENT_SCANS` | No | `10` | Maximum active concurrent scans allowed before returning `429 Too Many Requests`. |
 | `VT_API_KEY` | No | `""` | VirusTotal API Key for enhanced subdomain discovery. |
 | `SHODAN_API_KEY` | No | `""` | Shodan API Key for host intelligence. |
 | `OTX_API_KEY` | No | `""` | AlienVault OTX Key for threat intelligence. |
@@ -128,7 +205,7 @@ Caddy automatically manages Let's Encrypt TLS certificates and natively streams 
 
 Example `/etc/caddy/Caddyfile`:
 ```caddy
-api.reconlens.io {
+api.parallax.io {
     reverse_proxy 127.0.0.1:8080 {
         # Flush headers immediately for SSE streaming
         flush_interval -1
@@ -139,10 +216,10 @@ api.reconlens.io {
 ### Option 2: Nginx
 If using Nginx with Certbot, ensure response buffering is explicitly disabled for SSE streaming.
 
-Example `/etc/nginx/sites-available/reconlens`:
+Example `/etc/nginx/sites-available/parallax`:
 ```nginx
 server {
-    server_name api.reconlens.io;
+    server_name api.parallax.io;
 
     location / {
         proxy_pass http://127.0.0.1:8080;
@@ -162,8 +239,8 @@ server {
     }
 
     listen 443 ssl http2;
-    ssl_certificate /etc/letsencrypt/live/api.reconlens.io/fullchain.pem;
-    ssl_certificate_key /etc/letsencrypt/live/api.reconlens.io/privkey.pem;
+    ssl_certificate /etc/letsencrypt/live/api.parallax.io/fullchain.pem;
+    ssl_certificate_key /etc/letsencrypt/live/api.parallax.io/privkey.pem;
 }
 ```
 
@@ -171,23 +248,23 @@ server {
 
 ## 6. Systemd Service Setup
 
-Create `/etc/systemd/system/reconlens.service`:
+Create `/etc/systemd/system/parallax.service`:
 
 ```ini
 [Unit]
-Description=ReconLens OSINT Intelligence API Server
+Description=Parallax OSINT Intelligence API Server
 After=network.target
 
 [Service]
 Type=simple
-User=reconlens
-Group=reconlens
-WorkingDirectory=/var/lib/reconlens
-ExecStart=/usr/local/bin/reconlens serve \
+User=parallax
+Group=parallax
+WorkingDirectory=/var/lib/parallax
+ExecStart=/usr/local/bin/parallax serve \
     --host 127.0.0.1 \
     --port 8080 \
-    --db /var/lib/reconlens/reconlens.db \
-    --cors-origins https://reconlens.netlify.app \
+    --db /var/lib/parallax/parallax.db \
+    --cors-origins https://parallax.netlify.app \
     --max-concurrent-scans 10
 
 # Pass optional API keys securely
@@ -202,7 +279,7 @@ LimitNOFILE=65535
 # Sandboxing
 ProtectSystem=strict
 ProtectHome=true
-ReadWritePaths=/var/lib/reconlens
+ReadWritePaths=/var/lib/parallax
 PrivateTmp=true
 
 [Install]
@@ -212,19 +289,19 @@ WantedBy=multi-user.target
 Enable and start the service:
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now reconlens
-sudo systemctl status reconlens
+sudo systemctl enable --now parallax
+sudo systemctl status parallax
 ```
 
 ---
 
 ## 7. Database Persistence Requirements
 
-- **SQLite Safety**: ReconLens stores scans, subdomains, and DNS resolution records in an embedded SQLite database using WAL (Write-Ahead Logging) mode.
+- **SQLite Safety**: Parallax stores scans, subdomains, and DNS resolution records in an embedded SQLite database using WAL (Write-Ahead Logging) mode.
 - **Persistent Volume Requirement**: SQLite **must** reside on persistent block storage. Do not deploy the database onto ephemeral container filesystems (e.g. standard Heroku dynos or ephemeral Render instances) that reset upon restart or redeployment.
 - **Backups**: To backup the live database safely without locking writes, use SQLite's online backup tool or copy the database while WAL checkpointing:
   ```bash
-  sqlite3 /var/lib/reconlens/reconlens.db ".backup '/var/backups/reconlens-$(date +%F).db'"
+  sqlite3 /var/lib/parallax/parallax.db ".backup '/var/backups/parallax-$(date +%F).db'"
   ```
 
 ---
@@ -243,7 +320,7 @@ The Scan Details page communicates with the server via `GET /api/scans/{id}/even
 
 ### A. Unauthenticated API Analysis
 > [!WARNING]
-> In Phase 5/6, ReconLens does not implement user accounts or authentication. Anyone who can reach the API endpoint can invoke `POST /api/scans`.
+> In Phase 5/6, Parallax does not implement user accounts or authentication. Anyone who can reach the API endpoint can invoke `POST /api/scans`.
 
 If deployed directly to the public internet without network restrictions:
 - **Target Probing**: Anonymous internet users could trigger reconnaissance scans against arbitrary domains.
@@ -253,8 +330,8 @@ If deployed directly to the public internet without network restrictions:
 ### B. Protections Implemented in Phase 6
 - **Strict Hostname Validation**: All domain inputs are sanitized with `utils.NormalizeTargetDomain` and validated against RFC hostname specifications. Special characters, path traversals, protocol prefixes, and IP addresses are rejected with `400 Bad Request`.
 - **Request Size Limiting**: `http.MaxBytesReader` restricts all incoming request bodies to 1 MB.
-- **Concurrency Rate Limiting**: `RECONLENS_MAX_CONCURRENT_SCANS` (default: 10) prevents concurrent process flooding by rejecting additional scans with `429 Too Many Requests`.
-- **Restrictive CORS**: The API only responds with `Access-Control-Allow-Origin` matching explicitly configured origins in `RECONLENS_CORS_ORIGINS`.
+- **Concurrency Rate Limiting**: `PARALLAX_MAX_CONCURRENT_SCANS` (default: 10) prevents concurrent process flooding by rejecting additional scans with `429 Too Many Requests`.
+- **Restrictive CORS**: The API only responds with `Access-Control-Allow-Origin` matching explicitly configured origins in `PARALLAX_CORS_ORIGINS`.
 - **No Secret Leakage**: The API never transmits provider API keys to the browser.
 - **No Stack Traces**: All error outputs use standardized JSON error structures (`APIErrorResponse`).
 
@@ -262,7 +339,7 @@ If deployed directly to the public internet without network restrictions:
 Until user authentication is implemented:
 1. **Network Layer Isolation**: Restrict backend access to authorized team members using a VPN, Tailscale, WireGuard, or Cloudflare Zero Trust Access.
 2. **Reverse Proxy Basic Auth or IP Whitelisting**: Add HTTP Basic Authentication on the reverse proxy (`proxy_pass` layer) or whitelist trusted client IPs.
-3. **Strict Origin Policy**: Configure `RECONLENS_CORS_ORIGINS` strictly to your specific Netlify domain (`https://<your-subdomain>.netlify.app`).
+3. **Strict Origin Policy**: Configure `PARALLAX_CORS_ORIGINS` strictly to your specific Netlify domain (`https://<your-subdomain>.netlify.app`).
 
 ---
 
@@ -271,14 +348,14 @@ Until user authentication is implemented:
 ### Running Backend Locally
 ```bash
 # Terminal 1
-cd reconlens
+cd parallax
 go run main.go serve --host 127.0.0.1 --port 8080 --cors-origins http://localhost:3000
 ```
 
 ### Running Frontend Locally
 ```bash
 # Terminal 2
-cd reconlens/web
+cd parallax/web
 npm install
 npm run dev
 ```
@@ -291,8 +368,8 @@ Visit `http://localhost:3000` to interact with the dashboard.
 
 | Symptom | Cause | Solution |
 |---|---|---|
-| Frontend shows "Backend Disconnected" | `VITE_API_BASE_URL` is incorrect or CORS is blocking the request. | 1. Check browser developer console for CORS errors.<br>2. Confirm `RECONLENS_CORS_ORIGINS` matches the exact frontend origin (including `https://`).<br>3. Verify `curl -k https://api.example.com/api/health` returns `200 OK`. |
+| Frontend shows "Backend Disconnected" | `VITE_API_BASE_URL` is incorrect or CORS is blocking the request. | 1. Check browser developer console for CORS errors.<br>2. Confirm `PARALLAX_CORS_ORIGINS` matches the exact frontend origin (including `https://`).<br>3. Verify `curl -k https://api.example.com/api/health` returns `200 OK`. |
 | SSE progress stops updating or events arrive all at once upon completion | Reverse proxy is buffering responses. | Set `proxy_buffering off;` in Nginx or verify `flush_interval -1` in Caddy. Confirm `X-Accel-Buffering: no` header is present. |
-| Scan fails with `429 Too Many Requests` | Max concurrent scans exceeded. | Wait for running scans to complete or increase `RECONLENS_MAX_CONCURRENT_SCANS` on the server. |
+| Scan fails with `429 Too Many Requests` | Max concurrent scans exceeded. | Wait for running scans to complete or increase `PARALLAX_MAX_CONCURRENT_SCANS` on the server. |
 | Routes 404 when refreshed in browser | Netlify SPA rewrite missing. | Verify `netlify.toml` contains `[[redirects]] from = "/*" to = "/index.html" status = 200` or `web/public/_redirects` exists. |
-| Scans disappear after server restart | Database was placed on an ephemeral volume. | Set `RECONLENS_DB` to a persistent directory (e.g. `/var/lib/reconlens/reconlens.db`). |
+| Scans disappear after server restart | Database was placed on an ephemeral volume. | Set `PARALLAX_DB` to a persistent directory (e.g. `/var/lib/parallax/parallax.db`). |

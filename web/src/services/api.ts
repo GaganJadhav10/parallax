@@ -36,7 +36,7 @@ class APIClient {
       response = await fetch(url, { ...options, headers });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Network connection failure';
-      throw new Error(`Failed to connect to ReconLens API at ${this.baseURL}: ${msg}`);
+      throw new Error(`Failed to connect to Parallax API at ${this.baseURL}: ${msg}`);
     }
 
     if (!response.ok) {

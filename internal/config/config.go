@@ -75,17 +75,21 @@ func DefaultPath() (string, error) {
 		return "", err
 	}
 
-	reconlensPath := filepath.Join(configDir, "reconlens", "config.json")
-	if _, err := os.Stat(reconlensPath); err == nil {
-		return reconlensPath, nil
+	parallaxPath := filepath.Join(configDir, "parallax", "config.json")
+	if _, err := os.Stat(parallaxPath); err == nil {
+		return parallaxPath, nil
 	}
 
-	subscanPath := filepath.Join(configDir, "subscan", "config.json")
-	if _, err := os.Stat(subscanPath); err == nil {
-		return subscanPath, nil
+	// Legacy locations, newest first, so an existing install keeps working
+	// after the rename without the user moving anything.
+	for _, legacy := range []string{"reconlens", "subscan"} {
+		legacyPath := filepath.Join(configDir, legacy, "config.json")
+		if _, err := os.Stat(legacyPath); err == nil {
+			return legacyPath, nil
+		}
 	}
 
-	return reconlensPath, nil
+	return parallaxPath, nil
 }
 
 func DefaultDatabasePath() (string, error) {
@@ -93,7 +97,22 @@ func DefaultDatabasePath() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	return filepath.Join(configDir, "reconlens", "reconlens.db"), nil
+
+	parallaxPath := filepath.Join(configDir, "parallax", "parallax.db")
+	if _, err := os.Stat(parallaxPath); err == nil {
+		return parallaxPath, nil
+	}
+
+	// Keep using a pre-rename database when one exists, so upgrading does not
+	// silently strand an operator's scan history behind the new filename.
+	for _, legacy := range [][2]string{{"reconlens", "reconlens.db"}, {"subscan", "subscan.db"}} {
+		legacyPath := filepath.Join(configDir, legacy[0], legacy[1])
+		if _, err := os.Stat(legacyPath); err == nil {
+			return legacyPath, nil
+		}
+	}
+
+	return parallaxPath, nil
 }
 
 func expandPath(path string) (string, error) {

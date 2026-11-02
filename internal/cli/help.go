@@ -5,14 +5,14 @@ import (
 	"io"
 )
 
-const Banner = "ReconLens — Passive Reconnaissance & OSINT Intelligence"
+const Banner = "Parallax — Open-Source Signals Intelligence for External Attack Surfaces"
 
-// PrintRootHelp renders the main help manual for the ReconLens CLI.
+// PrintRootHelp renders the main help manual for the Parallax CLI.
 func PrintRootHelp(w io.Writer) {
 	fmt.Fprintln(w, Banner)
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Usage:")
-	fmt.Fprintln(w, "  reconlens <command> [options]")
+	fmt.Fprintln(w, "  parallax <command> [options]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Commands:")
 	fmt.Fprintln(w, "  scan       Run passive subdomain and asset reconnaissance")
@@ -22,28 +22,28 @@ func PrintRootHelp(w io.Writer) {
 	fmt.Fprintln(w, "  report     Generate standalone JSON or offline HTML intelligence reports")
 	fmt.Fprintln(w, "  sources    List supported OSINT intelligence sources and status")
 	fmt.Fprintln(w, "  version    Display version, commit, and platform build details")
-	fmt.Fprintln(w, "  help       Show help for reconlens or a specific command")
+	fmt.Fprintln(w, "  help       Show help for parallax or a specific command")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Examples:")
-	fmt.Fprintln(w, "  reconlens scan example.com")
-	fmt.Fprintln(w, "  reconlens scan example.com --resolve")
-	fmt.Fprintln(w, "  reconlens scan example.com --sources crtsh,urlscan,rapiddns")
-	fmt.Fprintln(w, "  reconlens serve --host 127.0.0.1 --port 8080")
-	fmt.Fprintln(w, "  reconlens history")
-	fmt.Fprintln(w, "  reconlens history example.com")
-	fmt.Fprintln(w, "  reconlens history <scan-id>")
-	fmt.Fprintln(w, "  reconlens compare <scan-id-1> <scan-id-2>")
-	fmt.Fprintln(w, "  reconlens report <scan-id> --format html --output report.html")
-	fmt.Fprintln(w, "  reconlens sources")
-	fmt.Fprintln(w, "  reconlens version")
+	fmt.Fprintln(w, "  parallax scan example.com")
+	fmt.Fprintln(w, "  parallax scan example.com --resolve")
+	fmt.Fprintln(w, "  parallax scan example.com --sources crtsh,urlscan,rapiddns")
+	fmt.Fprintln(w, "  parallax serve --host 127.0.0.1 --port 8080")
+	fmt.Fprintln(w, "  parallax history")
+	fmt.Fprintln(w, "  parallax history example.com")
+	fmt.Fprintln(w, "  parallax history <scan-id>")
+	fmt.Fprintln(w, "  parallax compare <scan-id-1> <scan-id-2>")
+	fmt.Fprintln(w, "  parallax report <scan-id> --format html --output report.html")
+	fmt.Fprintln(w, "  parallax sources")
+	fmt.Fprintln(w, "  parallax version")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Use 'reconlens <command> --help' for details on a specific command.")
+	fmt.Fprintln(w, "Use 'parallax <command> --help' for details on a specific command.")
 }
 
 // PrintScanHelp renders the options and usage examples for the scan command.
 func PrintScanHelp(w io.Writer) {
-	fmt.Fprintln(w, "Usage: reconlens scan <target> [options]")
-	fmt.Fprintln(w, "       reconlens scan -i <file> [options]")
+	fmt.Fprintln(w, "Usage: parallax scan <target> [options]")
+	fmt.Fprintln(w, "       parallax scan -i <file> [options]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Perform passive reconnaissance on a target domain without sending active probing traffic.")
 	fmt.Fprintln(w)
@@ -73,19 +73,19 @@ func PrintScanHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --config path            Path to custom JSON configuration file")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Examples:")
-	fmt.Fprintln(w, "  reconlens scan example.com")
-	fmt.Fprintln(w, "  reconlens scan example.com --resolve")
-	fmt.Fprintln(w, "  reconlens scan example.com --sources crtsh,certspotter")
-	fmt.Fprintln(w, "  reconlens scan example.com --json --output results.json")
-	fmt.Fprintln(w, "  cat domains.txt | reconlens scan -i - --json")
+	fmt.Fprintln(w, "  parallax scan example.com")
+	fmt.Fprintln(w, "  parallax scan example.com --resolve")
+	fmt.Fprintln(w, "  parallax scan example.com --sources crtsh,certspotter")
+	fmt.Fprintln(w, "  parallax scan example.com --json --output results.json")
+	fmt.Fprintln(w, "  cat domains.txt | parallax scan -i - --json")
 }
 
 // PrintHistoryHelp renders help for the history command.
 func PrintHistoryHelp(w io.Writer) {
-	fmt.Fprintln(w, "Usage: reconlens history [options]")
-	fmt.Fprintln(w, "       reconlens history <target> [options]")
-	fmt.Fprintln(w, "       reconlens history <scan-id> [options]")
-	fmt.Fprintln(w, "       reconlens history delete <scan-id> [options]")
+	fmt.Fprintln(w, "Usage: parallax history [options]")
+	fmt.Fprintln(w, "       parallax history <target> [options]")
+	fmt.Fprintln(w, "       parallax history <scan-id> [options]")
+	fmt.Fprintln(w, "       parallax history delete <scan-id> [options]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Inspect reconnaissance scan records, filter by target, or view individual scan details.")
 	fmt.Fprintln(w)
@@ -97,17 +97,17 @@ func PrintHistoryHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --config path            Path to custom JSON configuration file")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Examples:")
-	fmt.Fprintln(w, "  reconlens history")
-	fmt.Fprintln(w, "  reconlens history --limit 20")
-	fmt.Fprintln(w, "  reconlens history example.com")
-	fmt.Fprintln(w, "  reconlens history a13f9104")
-	fmt.Fprintln(w, "  reconlens history a13f9104 --json")
-	fmt.Fprintln(w, "  reconlens history delete a13f9104")
+	fmt.Fprintln(w, "  parallax history")
+	fmt.Fprintln(w, "  parallax history --limit 20")
+	fmt.Fprintln(w, "  parallax history example.com")
+	fmt.Fprintln(w, "  parallax history a13f9104")
+	fmt.Fprintln(w, "  parallax history a13f9104 --json")
+	fmt.Fprintln(w, "  parallax history delete a13f9104")
 }
 
 // PrintCompareHelp renders help for the compare command.
 func PrintCompareHelp(w io.Writer) {
-	fmt.Fprintln(w, "Usage: reconlens compare <scan-id-1> <scan-id-2> [options]")
+	fmt.Fprintln(w, "Usage: parallax compare <scan-id-1> <scan-id-2> [options]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Compare findings between two historical scans of the same target domain.")
 	fmt.Fprintln(w)
@@ -117,13 +117,13 @@ func PrintCompareHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --config path            Path to custom JSON configuration file")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Examples:")
-	fmt.Fprintln(w, "  reconlens compare a13f9104 b82c7719")
-	fmt.Fprintln(w, "  reconlens compare a13f9104 b82c7719 --json")
+	fmt.Fprintln(w, "  parallax compare a13f9104 b82c7719")
+	fmt.Fprintln(w, "  parallax compare a13f9104 b82c7719 --json")
 }
 
 // PrintReportHelp renders help for the report command.
 func PrintReportHelp(w io.Writer) {
-	fmt.Fprintln(w, "Usage: reconlens report <scan-id> [options]")
+	fmt.Fprintln(w, "Usage: parallax report <scan-id> [options]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Generate a standalone JSON or offline HTML intelligence report from a stored scan.")
 	fmt.Fprintln(w)
@@ -134,14 +134,14 @@ func PrintReportHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --config path            Path to custom JSON configuration file")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Examples:")
-	fmt.Fprintln(w, "  reconlens report a13f9104 --format json")
-	fmt.Fprintln(w, "  reconlens report a13f9104 --format html --output report.html")
-	fmt.Fprintln(w, "  reconlens report a13f9104 -o report.json")
+	fmt.Fprintln(w, "  parallax report a13f9104 --format json")
+	fmt.Fprintln(w, "  parallax report a13f9104 --format html --output report.html")
+	fmt.Fprintln(w, "  parallax report a13f9104 -o report.json")
 }
 
 // PrintSourcesHelp renders help for the sources command.
 func PrintSourcesHelp(w io.Writer) {
-	fmt.Fprintln(w, "Usage: reconlens sources [options]")
+	fmt.Fprintln(w, "Usage: parallax sources [options]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "List all built-in passive OSINT intelligence providers and their availability.")
 	fmt.Fprintln(w)
@@ -152,7 +152,7 @@ func PrintSourcesHelp(w io.Writer) {
 
 // PrintVersionHelp renders help for the version command.
 func PrintVersionHelp(w io.Writer) {
-	fmt.Fprintln(w, "Usage: reconlens version [options]")
+	fmt.Fprintln(w, "Usage: parallax version [options]")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Print version, commit, build timestamp, and compiler platform details.")
 	fmt.Fprintln(w)

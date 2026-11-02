@@ -3,7 +3,7 @@ package report
 import (
 	"encoding/json"
 
-	"github.com/lumiaurora/subscan/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/models"
 )
 
 // RenderJSON formats a reconnaissance report into indented JSON.

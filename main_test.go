@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/output"
+	"github.com/GaganJadhav10/parallax/internal/output"
 )
 
 func TestSelectSourcesIncludeExclude(t *testing.T) {

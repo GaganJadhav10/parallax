@@ -7,8 +7,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/lumiaurora/subscan/internal/config"
-	"github.com/lumiaurora/subscan/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/config"
+	"github.com/GaganJadhav10/parallax/internal/models"
 )
 
 var (
@@ -26,7 +26,7 @@ type Storage interface {
 	Close() error
 }
 
-// Open creates and connects to the ReconLens SQLite database at the specified path,
+// Open creates and connects to the Parallax SQLite database at the specified path,
 // creating parent directories and applying schema migrations automatically.
 func Open(dbPath string) (*SQLiteStorage, error) {
 	return NewSQLiteStorage(dbPath)
@@ -39,7 +39,7 @@ func ResolveDatabasePath(cliPath string, configDBPath string) (string, error) {
 		return filepath.Clean(cliPath), nil
 	}
 
-	if envPath := strings.TrimSpace(os.Getenv("RECONLENS_DB")); envPath != "" {
+	if envPath := firstEnvPath("PARALLAX_DB", "RECONLENS_DB"); envPath != "" {
 		return filepath.Clean(envPath), nil
 	}
 
@@ -53,4 +53,16 @@ func ResolveDatabasePath(cliPath string, configDBPath string) (string, error) {
 	}
 
 	return filepath.Clean(defaultPath), nil
+}
+
+// firstEnvPath returns the first non-empty value among the given variable
+// names. RECONLENS_DB is the pre-rename spelling, honoured so existing
+// deployments keep pointing at their database after upgrading.
+func firstEnvPath(names ...string) string {
+	for _, name := range names {
+		if value := strings.TrimSpace(os.Getenv(name)); value != "" {
+			return value
+		}
+	}
+	return ""
 }

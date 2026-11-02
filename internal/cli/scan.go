@@ -14,11 +14,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/config"
-	"github.com/lumiaurora/subscan/internal/engine"
-	"github.com/lumiaurora/subscan/internal/models"
-	"github.com/lumiaurora/subscan/internal/output"
-	"github.com/lumiaurora/subscan/internal/storage"
+	"github.com/GaganJadhav10/parallax/internal/config"
+	"github.com/GaganJadhav10/parallax/internal/engine"
+	"github.com/GaganJadhav10/parallax/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/output"
+	"github.com/GaganJadhav10/parallax/internal/storage"
 )
 
 // RunScan executes the 'scan' subcommand with the provided arguments.
@@ -215,8 +215,8 @@ func RunScan(args []string, outW io.Writer, errW io.Writer) int {
 	for index, target := range targets {
 		if !rawStdoutOnly {
 			if !batchMode {
-				fmt.Fprintln(outW, "ReconLens")
-				fmt.Fprintln(outW, "Passive Reconnaissance & OSINT Intelligence")
+				fmt.Fprintln(outW, "Parallax")
+				fmt.Fprintln(outW, "Open-Source Signals Intelligence for External Attack Surfaces")
 				fmt.Fprintln(outW)
 				fmt.Fprintf(outW, "Target:  %s\n", target)
 				fmt.Fprintf(outW, "Sources: %d enabled\n", len(selectedSources))
@@ -603,7 +603,7 @@ func determineOutput(jsonFlag bool, txtFlag bool, outputPath string, domain stri
 	}
 
 	if outputPath == "" {
-		outputPath = fmt.Sprintf("reconlens-%s.%s", domain, format)
+		outputPath = fmt.Sprintf("parallax-%s.%s", domain, format)
 	}
 
 	return format, outputPath, nil

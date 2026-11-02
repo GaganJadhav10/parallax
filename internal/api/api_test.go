@@ -10,10 +10,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/config"
-	"github.com/lumiaurora/subscan/internal/engine"
-	"github.com/lumiaurora/subscan/internal/models"
-	"github.com/lumiaurora/subscan/internal/storage"
+	"github.com/GaganJadhav10/parallax/internal/config"
+	"github.com/GaganJadhav10/parallax/internal/engine"
+	"github.com/GaganJadhav10/parallax/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/storage"
 )
 
 type mockEngine struct {
@@ -97,7 +97,7 @@ func TestHealthEndpoint(t *testing.T) {
 		t.Fatalf("failed to decode health response: %v", err)
 	}
 
-	if resp.Status != "ok" || resp.Service != "reconlens" {
+	if resp.Status != "ok" || resp.Service != "parallax" {
 		t.Errorf("unexpected health response: %+v", resp)
 	}
 	if resp.Version == "" || resp.Time == "" {

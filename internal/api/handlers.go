@@ -10,11 +10,11 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/buildinfo"
-	"github.com/lumiaurora/subscan/internal/engine"
-	"github.com/lumiaurora/subscan/internal/models"
-	"github.com/lumiaurora/subscan/internal/report"
-	"github.com/lumiaurora/subscan/internal/storage"
+	"github.com/GaganJadhav10/parallax/internal/buildinfo"
+	"github.com/GaganJadhav10/parallax/internal/engine"
+	"github.com/GaganJadhav10/parallax/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/report"
+	"github.com/GaganJadhav10/parallax/internal/storage"
 )
 
 // HealthResponse represents the payload returned by GET /api/health.
@@ -38,7 +38,7 @@ func (s *Server) handleHealth(w http.ResponseWriter, r *http.Request) {
 	info := buildinfo.Current()
 	writeJSON(w, http.StatusOK, HealthResponse{
 		Status:  "ok",
-		Service: "reconlens",
+		Service: "parallax",
 		Version: info.Version,
 		Time:    time.Now().UTC().Format(time.RFC3339),
 	})

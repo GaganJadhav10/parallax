@@ -1,0 +1,14 @@
+# The API image needs the Go sources only — keep the frontend, docs and local
+# build artefacts out of the build context.
+.git
+.github
+web
+dist
+node_modules
+*.md
+*.exe
+*.db
+.env
+.claude
+netlify.toml
+.goreleaser.yaml

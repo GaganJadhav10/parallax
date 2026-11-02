@@ -1,6 +1,6 @@
-# ReconLens Netlify Production Deployment Configuration
+# Parallax Netlify Production Deployment Configuration
 # Frontend: React + TypeScript (Vite SPA)
-# Backend: Go ReconLens API (separate host)
+# Backend: Go Parallax API (separate host)
 
 [build]
   base = "web"

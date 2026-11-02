@@ -1,4 +1,4 @@
-module github.com/lumiaurora/subscan
+module github.com/GaganJadhav10/parallax
 
 go 1.26.0
 

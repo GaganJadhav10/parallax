@@ -3,12 +3,42 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ReconLens — Passive Reconnaissance & OSINT Intelligence</title>
-    <meta name="description" content="ReconLens is a professional passive reconnaissance and OSINT intelligence dashboard." />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230EA5E9' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><circle cx='11' cy='11' r='8'/><path d='m21 21-4.3-4.3'/></svg>" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#07090E" />
+
+    <!-- Short form: browser tabs and search results truncate around 60 chars. -->
+    <title>Parallax — OSINT for External Attack Surfaces</title>
+    <meta
+      name="description"
+      content="Parallax maps an organisation's external attack surface from certificate transparency logs, passive DNS archives and threat intelligence feeds — correlating ten open sources into an attributed asset inventory and tracking exposure drift between engagements. Zero packets reach the target."
+    />
+
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="Parallax — Open-Source Signals Intelligence" />
+    <meta
+      property="og:description"
+      content="Correlates ten passive OSINT feeds into an attributed asset inventory, verifies it with concurrent DNS resolution, and diffs successive runs to expose infrastructure drift."
+    />
+    <meta property="og:site_name" content="Parallax" />
+    <meta name="twitter:card" content="summary" />
+
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/favicon.svg" />
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
   </head>
-  <body class="bg-background text-slate-100 min-h-screen antialiased selection:bg-primary selection:text-white">
+  <body class="bg-background min-h-screen antialiased">
     <div id="root"></div>
+    <noscript>
+      <div style="padding: 2rem; font-family: system-ui, sans-serif; color: #e2e8f0">
+        Parallax requires JavaScript to render the reconnaissance dashboard.
+      </div>
+    </noscript>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

@@ -9,10 +9,10 @@ import (
 	"sort"
 	"strings"
 
-	"github.com/lumiaurora/subscan/internal/config"
-	"github.com/lumiaurora/subscan/internal/models"
-	"github.com/lumiaurora/subscan/internal/report"
-	"github.com/lumiaurora/subscan/internal/storage"
+	"github.com/GaganJadhav10/parallax/internal/config"
+	"github.com/GaganJadhav10/parallax/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/report"
+	"github.com/GaganJadhav10/parallax/internal/storage"
 )
 
 // RunCompare executes the 'compare' subcommand with the provided arguments.
@@ -67,7 +67,7 @@ func RunCompare(args []string, outW io.Writer, errW io.Writer) int {
 
 	if len(positionalArgs) < 2 {
 		fmt.Fprintln(errW, "[!] Two scan IDs are required for comparison.")
-		fmt.Fprintln(errW, "Usage: reconlens compare <scan-id-1> <scan-id-2> [options]")
+		fmt.Fprintln(errW, "Usage: parallax compare <scan-id-1> <scan-id-2> [options]")
 		return 1
 	}
 
@@ -189,7 +189,7 @@ func compareScans(older, newer *models.Report) models.ScanComparison {
 }
 
 func renderComparisonText(cmp models.ScanComparison, outW io.Writer) {
-	fmt.Fprintln(outW, "ReconLens Scan Comparison")
+	fmt.Fprintln(outW, "Parallax Scan Comparison")
 	fmt.Fprintln(outW)
 	fmt.Fprintf(outW, "Target: %s\n", cmp.Target)
 	fmt.Fprintln(outW)

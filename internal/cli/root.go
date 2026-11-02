@@ -7,15 +7,15 @@ import (
 	"os"
 	"strings"
 
-	"github.com/lumiaurora/subscan/internal/engine"
+	"github.com/GaganJadhav10/parallax/internal/engine"
 )
 
-// Execute runs the ReconLens CLI using standard OS streams.
+// Execute runs the Parallax CLI using standard OS streams.
 func Execute(args []string) int {
 	return ExecuteWithWriters(args, os.Stdout, os.Stderr)
 }
 
-// ExecuteWithWriters runs the ReconLens CLI with customizable output and error writers.
+// ExecuteWithWriters runs the Parallax CLI with customizable output and error writers.
 func ExecuteWithWriters(args []string, outW io.Writer, errW io.Writer) int {
 	if len(args) == 0 {
 		PrintRootHelp(outW)
@@ -90,7 +90,7 @@ func ExecuteWithWriters(args []string, outW io.Writer, errW io.Writer) int {
 		}
 
 		fmt.Fprintf(errW, "[!] Unknown command: %q\n", firstArg)
-		fmt.Fprintln(errW, "Run 'reconlens --help' for usage.")
+		fmt.Fprintln(errW, "Run 'parallax --help' for usage.")
 		return 1
 	}
 }

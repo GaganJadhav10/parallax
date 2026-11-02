@@ -10,9 +10,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/lumiaurora/subscan/internal/config"
-	"github.com/lumiaurora/subscan/internal/report"
-	"github.com/lumiaurora/subscan/internal/storage"
+	"github.com/GaganJadhav10/parallax/internal/config"
+	"github.com/GaganJadhav10/parallax/internal/report"
+	"github.com/GaganJadhav10/parallax/internal/storage"
 )
 
 // RunReport executes the 'report' subcommand with the provided arguments.
@@ -59,7 +59,7 @@ func RunReport(args []string, outW io.Writer, errW io.Writer) int {
 	scanID = strings.TrimSpace(scanID)
 	if scanID == "" {
 		fmt.Fprintln(errW, "[!] A scan ID is required.")
-		fmt.Fprintln(errW, "Usage: reconlens report <scan-id> [options]")
+		fmt.Fprintln(errW, "Usage: parallax report <scan-id> [options]")
 		return 1
 	}
 

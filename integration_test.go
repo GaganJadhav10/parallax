@@ -8,11 +8,11 @@ import (
 )
 
 func TestLivePassiveEnumeration(t *testing.T) {
-	if os.Getenv("SUBSCAN_RUN_LIVE_TESTS") != "1" {
-		t.Skip("set SUBSCAN_RUN_LIVE_TESTS=1 to run live integration tests")
+	if os.Getenv("PARALLAX_RUN_LIVE_TESTS") != "1" {
+		t.Skip("set PARALLAX_RUN_LIVE_TESTS=1 to run live integration tests")
 	}
 
-	domain := os.Getenv("SUBSCAN_LIVE_DOMAIN")
+	domain := os.Getenv("PARALLAX_LIVE_DOMAIN")
 	if domain == "" {
 		domain = "cloudflare.com"
 	}

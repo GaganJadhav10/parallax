@@ -35,7 +35,7 @@ func Current() Info {
 
 func (info Info) String() string {
 	parts := []string{
-		fmt.Sprintf("ReconLens v%s", info.Version),
+		fmt.Sprintf("Parallax v%s", info.Version),
 		fmt.Sprintf("commit=%s", info.Commit),
 		fmt.Sprintf("built=%s", info.Date),
 		fmt.Sprintf("builder=%s", info.BuiltBy),
@@ -48,8 +48,8 @@ func (info Info) String() string {
 
 func (info Info) Detailed() string {
 	var sb strings.Builder
-	sb.WriteString(fmt.Sprintf("ReconLens v%s\n", info.Version))
-	sb.WriteString("Passive Reconnaissance & OSINT Intelligence\n")
+	sb.WriteString(fmt.Sprintf("Parallax v%s\n", info.Version))
+	sb.WriteString("Open-Source Signals Intelligence for External Attack Surfaces\n")
 	sb.WriteString("Based on subscan by Mikael Nurminen (MIT License)\n\n")
 	sb.WriteString(fmt.Sprintf("  Version:  v%s\n", info.Version))
 	sb.WriteString(fmt.Sprintf("  Commit:   %s\n", info.Commit))

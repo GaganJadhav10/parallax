@@ -10,15 +10,15 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/config"
-	"github.com/lumiaurora/subscan/internal/models"
-	"github.com/lumiaurora/subscan/internal/report"
-	"github.com/lumiaurora/subscan/internal/storage"
+	"github.com/GaganJadhav10/parallax/internal/config"
+	"github.com/GaganJadhav10/parallax/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/report"
+	"github.com/GaganJadhav10/parallax/internal/storage"
 )
 
 // RunHistory executes the 'history' subcommand with the provided arguments.
 func RunHistory(args []string, outW io.Writer, errW io.Writer) int {
-	// Check for 'delete' subaction: reconlens history delete <scan-id>
+	// Check for 'delete' subaction: parallax history delete <scan-id>
 	if len(args) > 0 && args[0] == "delete" {
 		return runHistoryDelete(args[1:], outW, errW)
 	}
@@ -139,7 +139,7 @@ func runHistoryDelete(args []string, outW io.Writer, errW io.Writer) int {
 	scanID = strings.TrimSpace(scanID)
 	if scanID == "" {
 		fmt.Fprintln(errW, "[!] A scan ID is required for deletion.")
-		fmt.Fprintln(errW, "Usage: reconlens history delete <scan-id>")
+		fmt.Fprintln(errW, "Usage: parallax history delete <scan-id>")
 		return 1
 	}
 
@@ -194,7 +194,7 @@ func renderIndividualScan(sc *models.Report, asJSON bool, outW io.Writer, errW i
 		return 0
 	}
 
-	fmt.Fprintln(outW, "ReconLens Scan Details")
+	fmt.Fprintln(outW, "Parallax Scan Details")
 	fmt.Fprintln(outW, "──────────────────────")
 	fmt.Fprintf(outW, "Scan ID:         %s\n", sc.ID)
 	fmt.Fprintf(outW, "Target:          %s\n", sc.Domain)
@@ -269,7 +269,7 @@ func displayScanList(ctx context.Context, store *storage.SQLiteStorage, filter m
 		return 0
 	}
 
-	fmt.Fprintln(outW, "ReconLens Scan History")
+	fmt.Fprintln(outW, "Parallax Scan History")
 	fmt.Fprintln(outW)
 	if len(records) == 0 {
 		fmt.Fprintln(outW, "No historical scans found.")

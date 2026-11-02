@@ -6,11 +6,11 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/config"
-	"github.com/lumiaurora/subscan/internal/storage"
+	"github.com/GaganJadhav10/parallax/internal/config"
+	"github.com/GaganJadhav10/parallax/internal/storage"
 )
 
-// Server coordinates the ReconLens HTTP REST API and Server-Sent Events engine.
+// Server coordinates the Parallax HTTP REST API and Server-Sent Events engine.
 type Server struct {
 	config     Config
 	manager    *ScanManager

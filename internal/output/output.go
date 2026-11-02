@@ -6,7 +6,7 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/lumiaurora/subscan/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/models"
 )
 
 // Aliases linking output structures to central models

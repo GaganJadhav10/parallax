@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/lumiaurora/subscan/internal/buildinfo"
+	"github.com/GaganJadhav10/parallax/internal/buildinfo"
 )
 
 // RunVersion handles the 'version' subcommand.

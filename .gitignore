@@ -1,6 +1,6 @@
 # Binaries and executables
-reconlens
-reconlens.exe
+parallax
+parallax.exe
 subscan
 subscan.exe
 *.exe
@@ -20,8 +20,8 @@ dist/
 # Local result and test artifacts
 results.json
 results.txt
-reconlens-*.json
-reconlens-*.txt
+parallax-*.json
+parallax-*.txt
 subscan-*.json
 subscan-*.txt
 test_results.json

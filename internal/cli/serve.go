@@ -13,10 +13,10 @@ import (
 	"syscall"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/api"
-	"github.com/lumiaurora/subscan/internal/config"
-	"github.com/lumiaurora/subscan/internal/engine"
-	"github.com/lumiaurora/subscan/internal/storage"
+	"github.com/GaganJadhav10/parallax/internal/api"
+	"github.com/GaganJadhav10/parallax/internal/config"
+	"github.com/GaganJadhav10/parallax/internal/engine"
+	"github.com/GaganJadhav10/parallax/internal/storage"
 )
 
 // RunServe executes the 'serve' subcommand starting the HTTP REST and SSE backend.
@@ -34,13 +34,13 @@ func RunServe(args []string, outW io.Writer, errW io.Writer) int {
 	}
 
 	// Environment variable overrides for provider API keys in server mode
-	if vt := resolveServerAPIKey([]string{"RECONLENS_VT_API_KEY", "VT_API_KEY"}, configFile.VTAPIKey); vt != "" {
+	if vt := resolveServerAPIKey([]string{"PARALLAX_VT_API_KEY", "VT_API_KEY"}, configFile.VTAPIKey); vt != "" {
 		configFile.VTAPIKey = vt
 	}
-	if shodan := resolveServerAPIKey([]string{"RECONLENS_SHODAN_API_KEY", "SHODAN_API_KEY"}, configFile.ShodanAPIKey); shodan != "" {
+	if shodan := resolveServerAPIKey([]string{"PARALLAX_SHODAN_API_KEY", "SHODAN_API_KEY"}, configFile.ShodanAPIKey); shodan != "" {
 		configFile.ShodanAPIKey = shodan
 	}
-	if otx := resolveServerAPIKey([]string{"RECONLENS_OTX_API_KEY", "OTX_API_KEY"}, configFile.OTXAPIKey); otx != "" {
+	if otx := resolveServerAPIKey([]string{"PARALLAX_OTX_API_KEY", "OTX_API_KEY"}, configFile.OTXAPIKey); otx != "" {
 		configFile.OTXAPIKey = otx
 	}
 
@@ -86,8 +86,8 @@ func RunServe(args []string, outW io.Writer, errW io.Writer) int {
 	eng := engine.NewEngine()
 	srv := api.NewServer(serverCfg, eng, store, configFile)
 
-	fmt.Fprintln(outW, "ReconLens Server")
-	fmt.Fprintln(outW, "Passive Reconnaissance & OSINT Intelligence")
+	fmt.Fprintln(outW, "Parallax Server")
+	fmt.Fprintln(outW, "Open-Source Signals Intelligence for External Attack Surfaces")
 	fmt.Fprintln(outW)
 	fmt.Fprintln(outW, "Listening on:")
 	fmt.Fprintf(outW, "http://%s\n", srv.Addr())
@@ -123,9 +123,9 @@ func RunServe(args []string, outW io.Writer, errW io.Writer) int {
 
 // PrintServeHelp outputs usage and configuration instructions for the serve command.
 func PrintServeHelp(w io.Writer) {
-	fmt.Fprintln(w, "Usage: reconlens serve [options]")
+	fmt.Fprintln(w, "Usage: parallax serve [options]")
 	fmt.Fprintln(w)
-	fmt.Fprintln(w, "Start the ReconLens HTTP REST API and Server-Sent Events backend server.")
+	fmt.Fprintln(w, "Start the Parallax HTTP REST API and Server-Sent Events backend server.")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Options:")
 	fmt.Fprintln(w, "  --host string                 Network bind address (default: 127.0.0.1)")
@@ -136,19 +136,19 @@ func PrintServeHelp(w io.Writer) {
 	fmt.Fprintln(w, "  --max-concurrent-scans int    Maximum concurrent scans allowed (default: 10)")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Environment Variables:")
-	fmt.Fprintln(w, "  RECONLENS_HOST                Default bind address")
-	fmt.Fprintln(w, "  RECONLENS_PORT                Default listening port")
-	fmt.Fprintln(w, "  RECONLENS_CORS_ORIGINS        Allowed CORS origins")
-	fmt.Fprintln(w, "  RECONLENS_DB                  Path to SQLite database")
-	fmt.Fprintln(w, "  RECONLENS_MAX_CONCURRENT_SCANS Maximum concurrent active scans")
-	fmt.Fprintln(w, "  VT_API_KEY / RECONLENS_VT_API_KEY VirusTotal API Key")
-	fmt.Fprintln(w, "  SHODAN_API_KEY / RECONLENS_SHODAN_API_KEY Shodan API Key")
-	fmt.Fprintln(w, "  OTX_API_KEY / RECONLENS_OTX_API_KEY AlienVault OTX API Key")
+	fmt.Fprintln(w, "  PARALLAX_HOST                Default bind address")
+	fmt.Fprintln(w, "  PARALLAX_PORT                Default listening port")
+	fmt.Fprintln(w, "  PARALLAX_CORS_ORIGINS        Allowed CORS origins")
+	fmt.Fprintln(w, "  PARALLAX_DB                  Path to SQLite database")
+	fmt.Fprintln(w, "  PARALLAX_MAX_CONCURRENT_SCANS Maximum concurrent active scans")
+	fmt.Fprintln(w, "  VT_API_KEY / PARALLAX_VT_API_KEY VirusTotal API Key")
+	fmt.Fprintln(w, "  SHODAN_API_KEY / PARALLAX_SHODAN_API_KEY Shodan API Key")
+	fmt.Fprintln(w, "  OTX_API_KEY / PARALLAX_OTX_API_KEY AlienVault OTX API Key")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "Examples:")
-	fmt.Fprintln(w, "  reconlens serve")
-	fmt.Fprintln(w, "  reconlens serve --host 127.0.0.1 --port 8080")
-	fmt.Fprintln(w, "  reconlens serve --host 0.0.0.0 --port 8080 --cors-origins https://reconlens.netlify.app")
+	fmt.Fprintln(w, "  parallax serve")
+	fmt.Fprintln(w, "  parallax serve --host 127.0.0.1 --port 8080")
+	fmt.Fprintln(w, "  parallax serve --host 0.0.0.0 --port 8080 --cors-origins https://parallax.netlify.app")
 }
 
 func resolveServerAPIKey(names []string, configValue string) string {

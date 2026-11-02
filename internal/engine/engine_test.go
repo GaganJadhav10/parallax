@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/models"
 )
 
 func TestEngineSourceSelection(t *testing.T) {

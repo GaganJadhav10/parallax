@@ -1,14 +1,14 @@
 version: 2
 
-project_name: subscan
+project_name: parallax
 
 before:
   hooks:
     - go test ./...
 
 builds:
-  - id: subscan
-    binary: subscan
+  - id: parallax
+    binary: parallax
     main: .
     env:
       - CGO_ENABLED=0
@@ -23,12 +23,12 @@ builds:
       - goos: windows
         goarch: arm64
     ldflags:
-      - -s -w -X github.com/lumiaurora/subscan/internal/buildinfo.version={{ .Version }} -X github.com/lumiaurora/subscan/internal/buildinfo.commit={{ .Commit }} -X github.com/lumiaurora/subscan/internal/buildinfo.date={{ .Date }} -X github.com/lumiaurora/subscan/internal/buildinfo.builtBy=goreleaser
+      - -s -w -X github.com/PixellHacker/parallax/internal/buildinfo.version={{ .Version }} -X github.com/PixellHacker/parallax/internal/buildinfo.commit={{ .Commit }} -X github.com/PixellHacker/parallax/internal/buildinfo.date={{ .Date }} -X github.com/PixellHacker/parallax/internal/buildinfo.builtBy=goreleaser
 
 archives:
   - id: default
     ids:
-      - subscan
+      - parallax
     formats:
       - tar.gz
     format_overrides:
@@ -54,7 +54,7 @@ notarize:
   macos:
     - enabled: '{{ and (isEnvSet "MACOS_SIGN_P12") (isEnvSet "MACOS_SIGN_PASSWORD") (isEnvSet "MACOS_NOTARY_KEY") (isEnvSet "MACOS_NOTARY_KEY_ID") (isEnvSet "MACOS_NOTARY_ISSUER_ID") }}'
       ids:
-        - subscan
+        - parallax
       sign:
         certificate: "{{ .Env.MACOS_SIGN_P12 }}"
         password: "{{ .Env.MACOS_SIGN_PASSWORD }}"
@@ -75,34 +75,34 @@ changelog:
 
 release:
   github:
-    owner: lumiaurora
-    name: subscan
+    owner: PixellHacker
+    name: parallax
 
 snapshot:
   version_template: "{{ incpatch .Version }}-next"
 
 homebrew_casks:
   - repository:
-      owner: lumiaurora
+      owner: PixellHacker
       name: homebrew-tap
       token: "{{ .Env.PACKAGE_PUBLISH_TOKEN }}"
       branch: main
     binaries:
-      - subscan
-    homepage: https://github.com/lumiaurora/subscan
+      - parallax
+    homepage: https://github.com/PixellHacker/parallax
     description: Passive subdomain enumeration CLI for OSINT and security research
     license: MIT
     url:
-      verified: github.com/lumiaurora/subscan/
+      verified: github.com/PixellHacker/parallax/
     caveats: |
-      subscan is currently distributed as an unsigned binary.
+      parallax is currently distributed as an unsigned binary.
       If Gatekeeper blocks execution after install, rerun:
-        xattr -dr com.apple.quarantine "$(brew --prefix)/Caskroom/subscan/latest/subscan"
+        xattr -dr com.apple.quarantine "$(brew --prefix)/Caskroom/parallax/latest/parallax"
     hooks:
       post:
         install: |
           if OS.mac?
-            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/subscan"]
+            system_command "/usr/bin/xattr", args: ["-dr", "com.apple.quarantine", "#{staged_path}/parallax"]
           end
     commit_author:
       name: github-actions[bot]
@@ -110,11 +110,11 @@ homebrew_casks:
 
 scoops:
   - repository:
-      owner: lumiaurora
+      owner: PixellHacker
       name: scoop-bucket
       token: "{{ .Env.PACKAGE_PUBLISH_TOKEN }}"
       branch: main
-    homepage: https://github.com/lumiaurora/subscan
+    homepage: https://github.com/PixellHacker/parallax
     description: Passive subdomain enumeration CLI for OSINT and security research
     license: MIT
     commit_author:

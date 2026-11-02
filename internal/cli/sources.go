@@ -6,9 +6,9 @@ import (
 	"io"
 	"strings"
 
-	"github.com/lumiaurora/subscan/internal/config"
-	"github.com/lumiaurora/subscan/internal/engine"
-	"github.com/lumiaurora/subscan/internal/sources"
+	"github.com/GaganJadhav10/parallax/internal/config"
+	"github.com/GaganJadhav10/parallax/internal/engine"
+	"github.com/GaganJadhav10/parallax/internal/sources"
 )
 
 type SourceCatalogItem struct {
@@ -114,8 +114,8 @@ func RunSources(args []string, w io.Writer, errW io.Writer) int {
 		return 0
 	}
 
-	fmt.Fprintln(w, "ReconLens Sources")
-	fmt.Fprintln(w, "Passive Reconnaissance & OSINT Intelligence")
+	fmt.Fprintln(w, "Parallax Sources")
+	fmt.Fprintln(w, "Open-Source Signals Intelligence for External Attack Surfaces")
 	fmt.Fprintln(w)
 	fmt.Fprintln(w, "PASSIVE SOURCES")
 	fmt.Fprintf(w, "%-15s %-30s %-12s\n", "ID", "PROVIDER", "STATUS")

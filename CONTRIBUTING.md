@@ -20,7 +20,7 @@ Requirements:
 Clone and build:
 
 ```bash
-git clone https://github.com/lumiaurora/subscan.git
+git clone https://github.com/PixellHacker/parallax.git
 cd subscan
 go build ./...
 ```
@@ -46,7 +46,7 @@ go build ./...
 Optional live integration test:
 
 ```bash
-SUBSCAN_RUN_LIVE_TESTS=1 SUBSCAN_LIVE_DOMAIN=cloudflare.com go test -tags=integration ./...
+PARALLAX_RUN_LIVE_TESTS=1 PARALLAX_LIVE_DOMAIN=cloudflare.com go test -tags=integration ./...
 ```
 
 ## Project conventions

@@ -8,10 +8,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/models"
-	"github.com/lumiaurora/subscan/internal/resolver"
-	"github.com/lumiaurora/subscan/internal/sources"
-	"github.com/lumiaurora/subscan/internal/utils"
+	"github.com/GaganJadhav10/parallax/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/resolver"
+	"github.com/GaganJadhav10/parallax/internal/sources"
+	"github.com/GaganJadhav10/parallax/internal/utils"
 )
 
 const (
@@ -56,7 +56,7 @@ type ScanOptions struct {
 // EventHandler receives real-time lifecycle and telemetry events during scanning.
 type EventHandler func(models.Event)
 
-// Engine is the central reconnaissance orchestrator for ReconLens.
+// Engine is the central reconnaissance orchestrator for Parallax.
 type Engine struct {
 	Registry []SourceDefinition
 }

@@ -7,7 +7,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/models"
 )
 
 const reportHTMLTemplate = `<!DOCTYPE html>
@@ -15,7 +15,7 @@ const reportHTMLTemplate = `<!DOCTYPE html>
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>ReconLens Report — {{ .Domain }}</title>
+  <title>Parallax Report — {{ .Domain }}</title>
   <style>
     :root {
       --bg: #0b0f19;
@@ -243,7 +243,7 @@ const reportHTMLTemplate = `<!DOCTYPE html>
     <header>
       <div>
         <div class="brand-title">RECON<span>LENS</span></div>
-        <div class="brand-subtitle">Passive Reconnaissance & OSINT Intelligence</div>
+        <div class="brand-subtitle">Open-Source Signals Intelligence for External Attack Surfaces</div>
       </div>
       <div class="scan-target-box">
         <div class="target-domain">{{ .Domain }}</div>
@@ -361,7 +361,7 @@ const reportHTMLTemplate = `<!DOCTYPE html>
     {{ end }}
 
     <footer>
-      <p>ReconLens is an extended passive reconnaissance and OSINT intelligence platform based on subscan by Mikael Nurminen.</p>
+      <p>Parallax is an extended passive reconnaissance and OSINT intelligence platform based on subscan by Mikael Nurminen.</p>
       <p style="margin-top: 0.5rem; font-size: 0.75rem;">Generated offline on {{ currentYear }} • Standalone HTML Intelligence Report</p>
     </footer>
   </div>
@@ -370,7 +370,7 @@ const reportHTMLTemplate = `<!DOCTYPE html>
 
 // RenderHTML formats a reconnaissance report into a self-contained offline HTML report.
 func RenderHTML(r models.Report) ([]byte, error) {
-	tmpl, err := template.New("reconlens_report").Funcs(template.FuncMap{
+	tmpl, err := template.New("parallax_report").Funcs(template.FuncMap{
 		"formatDuration": func(ms int64) string {
 			if ms < 1000 {
 				return fmt.Sprintf("%dms", ms)

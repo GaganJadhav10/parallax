@@ -3,22 +3,22 @@ package main
 import (
 	"os"
 
-	"github.com/lumiaurora/subscan/internal/cli"
-	"github.com/lumiaurora/subscan/internal/engine"
+	"github.com/GaganJadhav10/parallax/internal/cli"
+	"github.com/GaganJadhav10/parallax/internal/engine"
 )
 
 type sourceDefinition = engine.SourceDefinition
 type sourceResult = engine.SourceResult
 
 var (
-	sourceRegistry          = engine.DefaultRegistry()
-	selectSources           = engine.SelectSources
-	aggregateSourceEntries  = engine.AggregateSourceEntries
-	prepareTargets          = engine.PrepareTargets
-	buildBatchReport        = engine.BuildBatchReport
-	querySources            = cli.QuerySourcesLegacy
-	parseCSVList            = cli.ParseCSVList
-	parseTargetLines        = cli.ParseTargetLines
+	sourceRegistry         = engine.DefaultRegistry()
+	selectSources          = engine.SelectSources
+	aggregateSourceEntries = engine.AggregateSourceEntries
+	prepareTargets         = engine.PrepareTargets
+	buildBatchReport       = engine.BuildBatchReport
+	querySources           = cli.QuerySourcesLegacy
+	parseCSVList           = cli.ParseCSVList
+	parseTargetLines       = cli.ParseTargetLines
 )
 
 func main() {

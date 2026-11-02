@@ -8,12 +8,12 @@ import (
 	"sync"
 	"time"
 
+	"github.com/GaganJadhav10/parallax/internal/config"
+	"github.com/GaganJadhav10/parallax/internal/engine"
+	"github.com/GaganJadhav10/parallax/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/storage"
+	"github.com/GaganJadhav10/parallax/internal/utils"
 	"github.com/google/uuid"
-	"github.com/lumiaurora/subscan/internal/config"
-	"github.com/lumiaurora/subscan/internal/engine"
-	"github.com/lumiaurora/subscan/internal/models"
-	"github.com/lumiaurora/subscan/internal/storage"
-	"github.com/lumiaurora/subscan/internal/utils"
 )
 
 var (

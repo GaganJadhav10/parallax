@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/models"
 )
 
 func sampleTestReport(domain string) models.Report {
@@ -57,7 +57,7 @@ func sampleTestReport(domain string) models.Report {
 
 func TestStorageLifecycle(t *testing.T) {
 	ctx := context.Background()
-	dbPath := filepath.Join(t.TempDir(), "reconlens_test.db")
+	dbPath := filepath.Join(t.TempDir(), "parallax_test.db")
 
 	store, err := Open(dbPath)
 	if err != nil {
@@ -162,7 +162,7 @@ func TestStorageLifecycle(t *testing.T) {
 
 func TestStoragePersistenceReopen(t *testing.T) {
 	ctx := context.Background()
-	dbPath := filepath.Join(t.TempDir(), "reconlens_persist.db")
+	dbPath := filepath.Join(t.TempDir(), "parallax_persist.db")
 
 	store1, err := Open(dbPath)
 	if err != nil {
@@ -205,9 +205,10 @@ func TestResolveDatabasePath(t *testing.T) {
 		t.Fatalf("unexpected path: %s", p)
 	}
 
-	// 3. Fallback default
+	// 3. Fallback default. A machine that still has a pre-rename database keeps
+	// using it, so the legacy filenames are valid answers here too.
 	p, err = ResolveDatabasePath("", "")
-	if err != nil || !slices.Contains([]string{"reconlens.db"}, filepath.Base(p)) {
+	if err != nil || !slices.Contains([]string{"parallax.db", "reconlens.db", "subscan.db"}, filepath.Base(p)) {
 		t.Fatalf("unexpected default path: %s", p)
 	}
 }

@@ -1,140 +1,273 @@
-import React, { useEffect, useState } from 'react';
+import React from 'react';
 import {
   Info,
   Server,
-  Shield,
   Heart,
   RefreshCw,
-  ExternalLink,
   Code2,
   Terminal,
+  Monitor,
+  Database,
+  ArrowDown,
+  Keyboard,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { HealthResponse } from '../types';
+import { PageHeader } from '../components/ui/PageHeader';
+import { Button } from '../components/ui/Button';
+import { Alert } from '../components/ui/Alert';
+import { useEngineStatus } from '../hooks/useEngineStatus';
+import { formatDateTime, formatDuration } from '../lib/format';
+
+interface Endpoint {
+  method: 'GET' | 'POST' | 'DELETE';
+  path: string;
+  description: string;
+}
+
+const ENDPOINTS: Endpoint[] = [
+  { method: 'GET', path: '/api/health', description: 'Service liveness and version' },
+  { method: 'GET', path: '/api/sources', description: 'Provider catalog and auth state' },
+  { method: 'POST', path: '/api/scans', description: 'Start a passive reconnaissance scan' },
+  { method: 'GET', path: '/api/scans', description: 'List stored scan records' },
+  { method: 'GET', path: '/api/scans/{id}', description: 'Status of a single scan' },
+  { method: 'GET', path: '/api/scans/{id}/events', description: 'Live SSE progress stream' },
+  { method: 'GET', path: '/api/scans/{id}/results', description: 'Full report with subdomains' },
+  { method: 'GET', path: '/api/scans/{id}/report', description: 'Export as HTML or JSON' },
+  { method: 'GET', path: '/api/scans/compare', description: 'Diff two scans of one target' },
+  { method: 'DELETE', path: '/api/scans/{id}', description: 'Delete a stored scan record' },
+];
+
+const METHOD_CHIP: Record<Endpoint['method'], string> = {
+  GET: 'chip-intel',
+  POST: 'chip-verified',
+  DELETE: 'chip-anomaly',
+};
+
+const SHORTCUTS: Array<[string, string]> = [
+  ['⌘K / Ctrl+K', 'Open the command palette'],
+  ['/', 'Open the palette while not typing'],
+  ['↑ ↓', 'Move through palette results'],
+  ['Enter', 'Run the highlighted command'],
+  ['Esc', 'Close the palette or any dialog'],
+];
+
+const Node: React.FC<{
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  subtitle: string;
+  accent: string;
+}> = ({ icon: Icon, title, subtitle, accent }) => (
+  <div className="flex-1 min-w-0 p-4 rounded-lg bg-background border border-surface-border text-center">
+    <Icon className={`w-5 h-5 mx-auto ${accent}`} aria-hidden="true" />
+    <p className="mt-2 text-sm font-semibold text-white truncate">{title}</p>
+    <p className="text-micro font-mono text-slate-600 mt-0.5">{subtitle}</p>
+  </div>
+);
 
 export const AboutPage: React.FC = () => {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
-
-  const checkHealth = async () => {
-    setLoading(true);
-    setError(null);
-    try {
-      const data = await api.getHealth();
-      setHealth(data);
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Backend connection unavailable');
-      setHealth(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    checkHealth();
-  }, []);
+  const engine = useEngineStatus(60_000);
 
   return (
     <div className="max-w-4xl mx-auto space-y-6">
-      {/* Title */}
-      <div>
-        <h1 className="text-xl sm:text-2xl font-bold text-white tracking-tight flex items-center gap-2">
-          <Info className="w-6 h-6 text-primary" />
-          <span>About ReconLens &amp; Server Settings</span>
-        </h1>
-        <p className="mt-1 text-xs sm:text-sm text-slate-400">
-          Architecture overview, backend connectivity telemetry, and upstream software attribution.
-        </p>
-      </div>
+      <PageHeader
+        eyebrow="Reference"
+        title="About & API"
+        description="Architecture, backend connectivity, keyboard shortcuts and upstream attribution."
+        icon={Info}
+      />
 
-      {/* Backend Connectivity Status */}
-      <div className="bg-surface border border-surface-border rounded-xl p-6 shadow-xl space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <Server className="w-5 h-5 text-primary" />
-            <h2 className="text-sm font-semibold text-white">HTTP Backend Connection</h2>
-          </div>
-          <button
-            onClick={checkHealth}
-            disabled={loading}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-900 border border-surface-border text-xs text-slate-300 hover:text-white transition-colors"
+      <section className="card p-5 sm:p-6 space-y-4">
+        <div className="flex items-center justify-between gap-3 flex-wrap">
+          <h2 className="text-sm font-semibold font-display text-white flex items-center gap-2">
+            <Server className="w-4 h-4 text-primary" aria-hidden="true" />
+            Engine connection
+          </h2>
+          <Button
+            size="sm"
+            icon={RefreshCw}
+            loading={engine.state === 'checking'}
+            onClick={engine.refresh}
           >
-            <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
-            <span>Test Connection</span>
-          </button>
+            Probe now
+          </Button>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-2">
-          <div className="p-3.5 rounded-lg bg-slate-900/80 border border-surface-border">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Backend URL</span>
-            <span className="text-xs font-mono font-bold text-white mt-1 block truncate">
+        <dl className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+          <div className="p-3.5 rounded-lg bg-background border border-surface-border min-w-0">
+            <dt className="eyebrow">API base</dt>
+            <dd
+              className="text-sm font-mono font-semibold text-white mt-1 truncate"
+              title={api.getBaseURL()}
+            >
               {api.getBaseURL()}
-            </span>
+            </dd>
           </div>
 
-          <div className="p-3.5 rounded-lg bg-slate-900/80 border border-surface-border">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Status</span>
-            <span
-              className={`text-xs font-bold font-mono mt-1 block capitalize ${
-                health?.status === 'ok' ? 'text-emerald-400' : 'text-rose-400'
+          <div className="p-3.5 rounded-lg bg-background border border-surface-border">
+            <dt className="eyebrow">State</dt>
+            <dd
+              className={`text-sm font-mono font-semibold mt-1 ${
+                engine.state === 'checking'
+                  ? 'text-signal-attention'
+                  : engine.state === 'online'
+                  ? 'text-signal-verified'
+                  : 'text-signal-anomaly'
               }`}
             >
-              {loading ? 'Checking...' : health?.status === 'ok' ? 'Connected (OK)' : 'Disconnected'}
-            </span>
+              {engine.state}
+            </dd>
           </div>
 
-          <div className="p-3.5 rounded-lg bg-slate-900/80 border border-surface-border">
-            <span className="text-[10px] text-slate-400 uppercase tracking-wider block font-medium">Backend Version</span>
-            <span className="text-xs font-mono font-bold text-slate-300 mt-1 block">
-              {health?.version || 'Unknown'}
-            </span>
+          <div className="p-3.5 rounded-lg bg-background border border-surface-border">
+            <dt className="eyebrow">Round trip</dt>
+            <dd className="text-sm font-mono font-semibold text-slate-300 mt-1 tabular-nums">
+              {engine.latencyMs === null ? '—' : formatDuration(engine.latencyMs)}
+            </dd>
           </div>
-        </div>
 
-        {error && (
-          <div className="p-3 rounded-lg bg-rose-950/40 border border-rose-800/50 text-rose-300 text-xs">
-            {error}
+          <div className="p-3.5 rounded-lg bg-background border border-surface-border">
+            <dt className="eyebrow">Version</dt>
+            <dd className="text-sm font-mono font-semibold text-slate-300 mt-1">
+              {engine.version || '—'}
+            </dd>
           </div>
+        </dl>
+
+        {engine.checkedAt && (
+          <p className="text-micro font-mono text-slate-600">
+            last probe {formatDateTime(engine.checkedAt)}
+          </p>
         )}
-      </div>
 
-      {/* Product Architecture */}
-      <div className="bg-surface border border-surface-border rounded-xl p-6 shadow-xl space-y-4">
-        <div className="flex items-center gap-2">
-          <Code2 className="w-5 h-5 text-primary" />
-          <h2 className="text-sm font-semibold text-white">System Architecture</h2>
-        </div>
+        {engine.state === 'offline' && (
+          <Alert tone="error" title="Cannot reach the API">
+            Start the backend with <code className="font-mono text-slate-300">parallax serve</code>{' '}
+            and make sure its <code className="font-mono text-slate-300">--cors-origins</code> flag
+            includes this page's origin.
+          </Alert>
+        )}
+      </section>
 
-        <p className="text-xs text-slate-300 leading-relaxed">
-          ReconLens consists of a single high-performance Go reconnaissance core engine supporting two distinct interfaces: a standalone Linux CLI executable for Kali Linux operators and this modern browser dashboard for visual asset analysis. Both interfaces query the identical engine, sharing passive OSINT providers, DNS resolution verification, and persistent SQLite history.
+      <section className="card p-5 sm:p-6 space-y-5">
+        <h2 className="text-sm font-semibold font-display text-white flex items-center gap-2">
+          <Code2 className="w-4 h-4 text-primary" aria-hidden="true" />
+          System architecture
+        </h2>
+
+        <p className="text-sm text-slate-400 leading-relaxed">
+          One Go reconnaissance core serves two interfaces: a standalone CLI for terminal operators
+          and this browser dashboard. Both share the same passive OSINT providers, DNS resolution
+          and SQLite history.
         </p>
 
-        <div className="p-4 rounded-lg bg-slate-950 font-mono text-[11px] text-slate-300 border border-surface-border/80 overflow-x-auto leading-relaxed">
-          <span className="text-primary font-bold">Browser Dashboard (React/TS)</span> ──[REST + SSE]──► <span className="text-emerald-400 font-bold">ReconLens HTTP API (:8080)</span><br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br />
-          <span className="text-amber-400 font-bold">Kali / Linux CLI (reconlens)</span> ─────────────────────────────────┴──► <span className="text-sky-400 font-bold">Core Engine (internal/engine)</span><br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;│<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;▼<br />
-          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span className="text-purple-400 font-bold">SQLite Persistence</span>
-        </div>
-      </div>
+        <div className="p-4 rounded-lg bg-surface-raised/40 border border-surface-border space-y-3">
+          <div className="flex flex-col sm:flex-row gap-3">
+            <Node
+              icon={Monitor}
+              title="Browser dashboard"
+              subtitle="React + TypeScript"
+              accent="text-primary"
+            />
+            <Node
+              icon={Terminal}
+              title="Command line"
+              subtitle="parallax CLI"
+              accent="text-signal-attention"
+            />
+          </div>
 
-      {/* Upstream Software Attribution */}
-      <div className="bg-surface border border-surface-border rounded-xl p-6 shadow-xl space-y-3">
-        <div className="flex items-center gap-2">
-          <Heart className="w-5 h-5 text-rose-500" />
-          <h2 className="text-sm font-semibold text-white">Upstream Software Attribution</h2>
+          <ArrowDown className="w-4 h-4 text-slate-700 mx-auto" aria-hidden="true" />
+
+          <div className="p-4 rounded-lg bg-background border border-primary/25 text-center">
+            <p className="text-sm font-semibold text-white">Core engine</p>
+            <p className="text-micro font-mono text-slate-600 mt-0.5">
+              internal/engine · REST + SSE
+            </p>
+          </div>
+
+          <ArrowDown className="w-4 h-4 text-slate-700 mx-auto" aria-hidden="true" />
+
+          <div className="p-4 rounded-lg bg-background border border-surface-border text-center">
+            <Database className="w-5 h-5 mx-auto text-signal-alias" aria-hidden="true" />
+            <p className="mt-2 text-sm font-semibold text-white">SQLite persistence</p>
+            <p className="text-micro font-mono text-slate-600 mt-0.5">pure Go, no CGO</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="card p-5 sm:p-6 space-y-4">
+        <h2 className="text-sm font-semibold font-display text-white flex items-center gap-2">
+          <Keyboard className="w-4 h-4 text-primary" aria-hidden="true" />
+          Keyboard shortcuts
+        </h2>
+
+        <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-2.5">
+          {SHORTCUTS.map(([keys, description]) => (
+            <div key={keys} className="flex items-center justify-between gap-3 min-w-0">
+              <dt className="text-sm text-slate-400 truncate">{description}</dt>
+              <dd>
+                <kbd className="text-micro font-mono text-slate-300 border border-surface-border bg-background rounded px-1.5 py-0.5 whitespace-nowrap">
+                  {keys}
+                </kbd>
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </section>
+
+      <section className="card overflow-hidden">
+        <div className="p-5 sm:p-6 pb-4">
+          <h2 className="text-sm font-semibold font-display text-white flex items-center gap-2">
+            <Server className="w-4 h-4 text-primary" aria-hidden="true" />
+            REST API reference
+          </h2>
+          <p className="text-sm text-slate-400 mt-1.5">
+            Every dashboard action maps to one of these endpoints — scriptable directly with curl.
+          </p>
         </div>
 
-        <p className="text-xs text-slate-300 leading-relaxed">
-          ReconLens is an extended passive reconnaissance and OSINT intelligence platform based on <span className="text-white font-semibold">subscan</span> by <span className="text-white font-semibold">Mikael Nurminen</span>.
+        <div className="overflow-x-auto border-t border-surface-border">
+          <table className="data-table">
+            <thead>
+              <tr>
+                <th scope="col">Method</th>
+                <th scope="col">Endpoint</th>
+                <th scope="col">Purpose</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ENDPOINTS.map((endpoint) => (
+                <tr key={`${endpoint.method}-${endpoint.path}`}>
+                  <td>
+                    <span className={METHOD_CHIP[endpoint.method]}>{endpoint.method}</span>
+                  </td>
+                  <td className="font-mono text-xs text-white whitespace-nowrap">{endpoint.path}</td>
+                  <td className="text-slate-500 text-xs">{endpoint.description}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="card p-5 sm:p-6 space-y-3">
+        <h2 className="text-sm font-semibold font-display text-white flex items-center gap-2">
+          <Heart className="w-4 h-4 text-signal-anomaly" aria-hidden="true" />
+          Upstream attribution
+        </h2>
+
+        <p className="text-sm text-slate-300 leading-relaxed">
+          Parallax extends <span className="font-semibold text-white">subscan</span> by{' '}
+          <span className="font-semibold text-white">Mikael Nurminen</span>, released under the MIT
+          License.
         </p>
 
-        <p className="text-xs text-slate-400 leading-relaxed">
-          The upstream project is released under the permissive MIT License. ReconLens honors and preserves all upstream copyrights, maintaining the original core passive intelligence foundation while extending the platform with pure-Go SQLite persistence, scan diffing, offline HTML reporting, an asynchronous REST/SSE backend server, and this unified web dashboard.
+        <p className="text-sm text-slate-500 leading-relaxed">
+          All upstream copyright notices are preserved. Parallax keeps the original passive
+          intelligence foundation and adds pure-Go SQLite persistence, scan diffing, offline HTML
+          reporting, an asynchronous REST/SSE backend and this dashboard.
         </p>
-      </div>
+      </section>
     </div>
   );
 };

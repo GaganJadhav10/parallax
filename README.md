@@ -1,21 +1,21 @@
-# ReconLens
+# Parallax — Open-Source Signals Intelligence for External Attack Surfaces
 
-> **Passive Reconnaissance & OSINT Intelligence**
+> Maps an organisation's external attack surface from certificate transparency logs, passive DNS archives and threat intelligence feeds — correlating ten open sources into an attributed asset inventory and tracking exposure drift between engagements. **Zero packets reach the target.**
 
 [![License](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
-[![Go Report Card](https://goreportcard.com/badge/github.com/lumiaurora/subscan)](https://goreportcard.com/report/github.com/lumiaurora/subscan)
+[![Go Report Card](https://goreportcard.com/badge/github.com/PixellHacker/parallax)](https://goreportcard.com/report/github.com/PixellHacker/parallax)
 
-`reconlens` is a passive reconnaissance and open-source intelligence (OSINT) command-line platform engineered in Go for security analysts, penetration testers, CTF competitors, and cybersecurity researchers. It enumerates domain assets, aggregates passive intelligence across public datasets without active network probing, performs multi-source attribution, provides concurrent DNS verification with wildcard filtering, and exports structured reports in JSON and TXT formats.
+`parallax` is a passive reconnaissance and open-source intelligence (OSINT) command-line platform engineered in Go for security analysts, penetration testers, CTF competitors, and cybersecurity researchers. It enumerates domain assets, aggregates passive intelligence across public datasets without active network probing, performs multi-source attribution, provides concurrent DNS verification with wildcard filtering, and exports structured reports in JSON and TXT formats.
 
 ---
 
 ## Attribution & Open Source Heritage
 
-ReconLens is an extended, modified project built upon the technical foundation of [subscan](https://github.com/lumiaurora/subscan), originally developed by **Mikael Nurminen** under the [MIT License](LICENSE).
+Parallax is an extended, modified project built upon the technical foundation of [subscan](https://github.com/lumiaurora/subscan), originally developed by **Mikael Nurminen** under the [MIT License](LICENSE).
 
 In accordance with the MIT License:
 - The original copyright notice `Copyright (c) 2026 Mikael Nurminen` and permission notices are preserved in [LICENSE](LICENSE).
-- ReconLens extends the upstream codebase into a decoupled, interface-independent core architecture (`internal/engine`) designed to power both a professional Kali Linux command-line interface and a future web intelligence dashboard through shared domain models (`internal/models`).
+- Parallax extends the upstream codebase into a decoupled, interface-independent core architecture (`internal/engine`) designed to power both a professional Kali Linux command-line interface and a future web intelligence dashboard through shared domain models (`internal/models`).
 
 ---
 
@@ -41,20 +41,20 @@ Passive enumeration maps an organization's attack surface and external perimeter
 - **DNS Resolution & Wildcard Detection**: Concurrent A/AAAA and CNAME verification with automated wildcard DNS fingerprint filtering.
 - **Resilient Network Client**: Exponential backoff, retry handling, rate-limit classification, and non-fatal provider failure isolation.
 - **Export Formats**: Standard terminal output, structured JSON, and line-delimited TXT.
-- **Batch Processing**: File-based inputs and Unix standard input stream pipelines (`cat domains.txt | reconlens scan -`).
+- **Batch Processing**: File-based inputs and Unix standard input stream pipelines (`cat domains.txt | parallax scan -`).
 
 ---
 
 ## Project Architecture
 
 ```text
-ReconLens
+Parallax
 ├── cmd/
-│   └── reconlens/             # Executable entrypoint
+│   └── parallax/             # Executable entrypoint
 ├── internal/
 │   ├── buildinfo/             # Version, commit, build timestamp, platform
 │   ├── cli/                   # Subcommand router, argument parser & terminal views
-│   ├── config/                # JSON config loader (supports reconlens and subscan paths)
+│   ├── config/                # JSON config loader (supports parallax, reconlens and subscan paths)
 │   ├── engine/                # Core reconnaissance orchestrator & event streaming
 │   ├── models/                # Unified domain models (Report, Subdomain, Event, RunMetadata)
 │   ├── output/                # Exporters (JSON, TXT, Batch TXT)
@@ -77,110 +77,110 @@ ReconLens
 ### Build from Source
 ```bash
 # Clone the repository
-git clone https://github.com/lumiaurora/subscan.git reconlens
-cd reconlens
+git clone https://github.com/PixellHacker/parallax.git parallax
+cd parallax
 
-# Build the ReconLens binary
-go build -o reconlens .
+# Build the Parallax binary
+go build -o parallax .
 
 # On Windows PowerShell:
-go build -o reconlens.exe .
+go build -o parallax.exe .
 ```
 
 Verify installation:
 ```bash
-./reconlens version
+./parallax version
 ```
 
 ---
 
 ## CLI Usage
 
-ReconLens uses a structured command format:
+Parallax uses a structured command format:
 
 ```text
-reconlens <command> [options]
+parallax <command> [options]
 ```
 
-### 1. `reconlens scan`
+### 1. `parallax scan`
 
 Perform passive reconnaissance against a domain or list of domains.
 
 ```bash
 # Basic passive scan on a single domain
-reconlens scan example.com
+parallax scan example.com
 
 # Verify live DNS records and filter wildcard hostnames
-reconlens scan example.com --resolve
+parallax scan example.com --resolve
 
 # Select specific passive providers
-reconlens scan example.com --sources crtsh,certspotter,urlscan
+parallax scan example.com --sources crtsh,certspotter,urlscan
 
 # Exclude an intermittent provider
-reconlens scan example.com --exclude-source bufferover
+parallax scan example.com --exclude-source bufferover
 
 # Export structured JSON to stdout (pipeable to jq)
-reconlens scan example.com --json
+parallax scan example.com --json
 
 # Save structured JSON report to a file
-reconlens scan example.com --output results.json --json
+parallax scan example.com --output results.json --json
 
 # Save line-delimited subdomains to a text file
-reconlens scan example.com --output subdomains.txt --txt
+parallax scan example.com --output subdomains.txt --txt
 
 # Tune concurrency and network timeouts
-reconlens scan example.com --threads 25 --timeout 20s --retries 3
+parallax scan example.com --threads 25 --timeout 20s --retries 3
 
 # Batch scan from an input file
-reconlens scan -i domains.txt --resolve
+parallax scan -i domains.txt --resolve
 
 # Batch scan from standard input
-cat domains.txt | reconlens scan -i - --json
+cat domains.txt | parallax scan -i - --json
 ```
 
-### 2. `reconlens sources`
+### 2. `parallax sources`
 
 Inspect the status, provider type, and authentication requirements of all supported OSINT sources.
 
 ```bash
-reconlens sources
+parallax sources
 
 # Output in machine-readable JSON format
-reconlens sources --json
+parallax sources --json
 ```
 
-### 3. `reconlens version`
+### 3. `parallax version`
 
 Display current version, commit hash, build date, Go compiler version, and platform metadata.
 
 ```bash
-reconlens version
+parallax version
 
 # Output in JSON format
-reconlens version --json
+parallax version --json
 ```
 
-### 4. `reconlens help`
+### 4. `parallax help`
 
 Display detailed help and examples.
 
 ```bash
-reconlens --help
-reconlens scan --help
-reconlens sources --help
-reconlens version --help
+parallax --help
+parallax scan --help
+parallax sources --help
+parallax version --help
 ```
 
 ---
 
 ## Configuration
 
-ReconLens supports three layers of configuration:
+Parallax supports three layers of configuration:
 1. **CLI Flags**: Highest precedence per execution.
 2. **Environment Variables**: Overrides API keys (`OTX_API_KEY`, `VT_API_KEY`, `SHODAN_API_KEY`).
 3. **JSON Configuration File**: Loaded automatically from:
-   - Linux / macOS: `~/.config/reconlens/config.json` (fallback: `~/.config/subscan/config.json`)
-   - Windows: `%AppData%\reconlens\config.json` (fallback: `%AppData%\subscan\config.json`)
+   - Linux / macOS: `~/.config/parallax/config.json` (fallbacks: `~/.config/reconlens/`, `~/.config/subscan/`)
+   - Windows: `%AppData%\parallax\config.json` (fallbacks: `%AppData%\reconlens\`, `%AppData%\subscan\`)
    - Custom path: `--config /path/to/config.json`
 
 ### Example Configuration (`config.json`)
@@ -222,11 +222,11 @@ go test -v ./internal/sources/...
 
 Run live integration tests against public networks (opt-in):
 ```bash
-SUBSCAN_RUN_LIVE_TESTS=1 go test -tags=integration ./...
+PARALLAX_RUN_LIVE_TESTS=1 go test -tags=integration ./...
 ```
 
 ---
 
 ## Disclaimer
 
-ReconLens is designed solely for passive intelligence gathering, authorized security research, educational exploration, and OSINT investigations. Users are responsible for complying with applicable local and international laws, regulations, and third-party terms of service.
+Parallax is designed solely for passive intelligence gathering, authorized security research, educational exploration, and OSINT investigations. Users are responsible for complying with applicable local and international laws, regulations, and third-party terms of service.

@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/models"
-	"github.com/lumiaurora/subscan/internal/storage"
+	"github.com/GaganJadhav10/parallax/internal/models"
+	"github.com/GaganJadhav10/parallax/internal/storage"
 )
 
 func createTestDBWithScans(t *testing.T) (string, string, string) {
@@ -116,7 +116,7 @@ func TestCLIHistoryList(t *testing.T) {
 		t.Fatalf("history failed with code %d: %s", code, err.String())
 	}
 	outStr := out.String()
-	if !strings.Contains(outStr, "ReconLens Scan History") {
+	if !strings.Contains(outStr, "Parallax Scan History") {
 		t.Errorf("expected header in history output: %s", outStr)
 	}
 	if !strings.Contains(outStr, "example.com") || !strings.Contains(outStr, "otherdomain.org") {
@@ -162,7 +162,7 @@ func TestCLIHistoryIndividualScan(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("history inspect failed with code %d: %s", code, err.String())
 	}
-	if !strings.Contains(out.String(), "ReconLens Scan Details") {
+	if !strings.Contains(out.String(), "Parallax Scan Details") {
 		t.Errorf("expected scan details header")
 	}
 	if !strings.Contains(out.String(), "api.example.com") {
@@ -240,7 +240,7 @@ func TestCLICompare(t *testing.T) {
 		t.Fatalf("compare failed with code %d: %s", code, err.String())
 	}
 	outStr := out.String()
-	if !strings.Contains(outStr, "ReconLens Scan Comparison") {
+	if !strings.Contains(outStr, "Parallax Scan Comparison") {
 		t.Errorf("expected comparison header, got: %s", outStr)
 	}
 	if !strings.Contains(outStr, "Added (2)") {

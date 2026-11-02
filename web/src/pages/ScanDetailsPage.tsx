@@ -1,7 +1,6 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams, useNavigate, Link } from 'react-router-dom';
 import {
-  Globe,
   Clock,
   CheckCircle2,
   XCircle,
@@ -13,51 +12,126 @@ import {
   Search,
   ExternalLink,
   Activity,
-  Layers,
   Terminal,
   ArrowLeft,
   RefreshCw,
+  Download,
+  ArrowUpDown,
+  Globe,
+  Layers,
+  Repeat,
+  ChevronDown,
+  ChevronRight,
+  Network,
+  Table2,
+  Server,
 } from 'lucide-react';
 import { api } from '../services/api';
-import { Report, ScanStatusResponse } from '../types';
-import { useScanEvents, ScanProgressState } from '../hooks/useScanEvents';
+import { Report, ScanStatusResponse, Subdomain } from '../types';
+import { useScanEvents } from '../hooks/useScanEvents';
 import { StatusBadge } from '../components/StatusBadge';
 import { Modal } from '../components/Modal';
+import { PipelineHUD } from '../components/PipelineHUD';
+import { StatTile, Meter } from '../components/ui/Telemetry';
+import { Button, ExternalButtonLink, IconButton } from '../components/ui/Button';
+import { Alert } from '../components/ui/Alert';
+import { EmptyState } from '../components/ui/EmptyState';
+import { Pagination } from '../components/ui/Pagination';
+import { useToast } from '../components/ui/Toast';
+import { fingerprintHost, fingerprintSummary, groupHosts, GroupMode, uniqueIPs } from '../lib/infra';
+import {
+  csvCell,
+  downloadTextFile,
+  formatDateTime,
+  formatDuration,
+  formatNumber,
+  formatTime,
+  shortId,
+} from '../lib/format';
+
+type SortKey = 'name' | 'sources' | 'ips';
+type SortDirection = 'asc' | 'desc';
+type ViewMode = 'table' | 'infrastructure';
+
+/** Long IP lists made rows six lines tall; collapse past this and let users expand. */
+const INLINE_CHIP_LIMIT = 3;
+
+const ChipList: React.FC<{ values: string[]; className: string }> = ({ values, className }) => {
+  const [expanded, setExpanded] = useState(false);
+  if (values.length === 0) return <span className="text-slate-700">—</span>;
+
+  const visible = expanded ? values : values.slice(0, INLINE_CHIP_LIMIT);
+  const hidden = values.length - visible.length;
+
+  return (
+    <div className="flex flex-wrap gap-1 items-center">
+      {visible.map((value) => (
+        <span key={value} className={className}>
+          {value}
+        </span>
+      ))}
+      {hidden > 0 && (
+        <button
+          onClick={() => setExpanded(true)}
+          className="text-micro font-mono text-primary hover:text-primary-light transition-colors px-1"
+        >
+          +{hidden}
+        </button>
+      )}
+      {expanded && values.length > INLINE_CHIP_LIMIT && (
+        <button
+          onClick={() => setExpanded(false)}
+          className="text-micro font-mono text-slate-600 hover:text-slate-400 transition-colors px-1"
+        >
+          less
+        </button>
+      )}
+    </div>
+  );
+};
+
+const GROUP_LABELS: Record<GroupMode, string> = {
+  ip: 'Shared IP',
+  subnet: 'Subnet /24',
+  cname: 'CNAME target',
+};
 
 export const ScanDetailsPage: React.FC = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { notify } = useToast();
 
   const [scanStatus, setScanStatus] = useState<ScanStatusResponse | null>(null);
   const [report, setReport] = useState<Report | null>(null);
-  const [loading, setLoading] = useState<boolean>(true);
+  const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [copiedAll, setCopiedAll] = useState<boolean>(false);
   const [copiedItem, setCopiedItem] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState<string>('');
-  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState<boolean>(false);
-  const [deleting, setDeleting] = useState<boolean>(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [resolvedOnly, setResolvedOnly] = useState(false);
+  const [sortKey, setSortKey] = useState<SortKey>('name');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(50);
+  const [viewMode, setViewMode] = useState<ViewMode>('table');
+  const [groupMode, setGroupMode] = useState<GroupMode>('ip');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [telemetryOpen, setTelemetryOpen] = useState(false);
 
-  // Fetch final results when scan completes
   const fetchResults = useCallback(async (scanId: string) => {
     try {
-      const rep = await api.getScanResults(scanId);
-      setReport(rep);
+      setReport(await api.getScanResults(scanId));
     } catch (err: unknown) {
       console.warn('Scan results not yet available:', err);
     }
   }, []);
 
-  // Fetch initial scan state
   const loadScanData = useCallback(async () => {
     if (!id) return;
-    setLoading(true);
     setError(null);
-
     try {
       const status = await api.getScanStatus(id);
       setScanStatus(status);
-
       if (status.status === 'completed') {
         await fetchResults(id);
       }
@@ -72,8 +146,8 @@ export const ScanDetailsPage: React.FC = () => {
     loadScanData();
   }, [loadScanData]);
 
-  // Hook up SSE live events stream
   const isScanActive = scanStatus?.status === 'running' || scanStatus?.status === 'pending';
+
   const {
     events,
     progressState,
@@ -81,430 +155,752 @@ export const ScanDetailsPage: React.FC = () => {
     rawCount,
     uniqueCount,
     liveCount,
+    isConnected,
     error: sseError,
-  } = useScanEvents(id, isScanActive, () => {
-    if (id) {
-      loadScanData();
-    }
-  });
+  } = useScanEvents(id, isScanActive, loadScanData);
 
-  // Handle hostname copy
-  const handleCopyAll = () => {
-    if (!report || report.subdomains.length === 0) return;
-    const names = report.subdomains.map((s) => s.name).join('\n');
-    navigator.clipboard.writeText(names);
-    setCopiedAll(true);
-    setTimeout(() => setCopiedAll(false), 2000);
-  };
+  // SSE can be blocked by a proxy; poll as a fallback so the page still advances.
+  useEffect(() => {
+    if (!isScanActive || isConnected) return;
+    const interval = window.setInterval(loadScanData, 4_000);
+    return () => window.clearInterval(interval);
+  }, [isScanActive, isConnected, loadScanData]);
 
-  const handleCopySingle = (name: string) => {
-    navigator.clipboard.writeText(name);
-    setCopiedItem(name);
-    setTimeout(() => setCopiedItem(null), 1500);
-  };
+  const logRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (logRef.current) logRef.current.scrollTop = logRef.current.scrollHeight;
+  }, [events.length]);
 
-  // Filter subdomains
-  const filteredSubdomains = useMemo(() => {
+  const copyText = useCallback(
+    (text: string, key: string, message: string) => {
+      navigator.clipboard.writeText(text).then(
+        () => {
+          setCopiedItem(key);
+          notify(message, 'success');
+          window.setTimeout(() => setCopiedItem(null), 1500);
+        },
+        () => notify('Clipboard access was blocked by the browser', 'error')
+      );
+    },
+    [notify]
+  );
+
+  const visibleSubdomains = useMemo(() => {
     if (!report) return [];
-    if (!searchQuery.trim()) return report.subdomains;
-    const q = searchQuery.toLowerCase().trim();
-    return report.subdomains.filter(
-      (s) =>
-        s.name.toLowerCase().includes(q) ||
-        s.sources.some((src) => src.toLowerCase().includes(q)) ||
-        s.ips?.some((ip) => ip.includes(q)) ||
-        s.cnames?.some((cn) => cn.toLowerCase().includes(q))
-    );
-  }, [report, searchQuery]);
+    const query = searchQuery.toLowerCase().trim();
 
-  // Delete scan
+    const filtered = report.subdomains.filter((sub) => {
+      if (resolvedOnly && !(sub.ips && sub.ips.length > 0)) return false;
+      if (!query) return true;
+      return (
+        sub.name.toLowerCase().includes(query) ||
+        sub.sources.some((source) => source.toLowerCase().includes(query)) ||
+        sub.ips?.some((ip) => ip.includes(query)) ||
+        sub.cnames?.some((cname) => cname.toLowerCase().includes(query))
+      );
+    });
+
+    const direction = sortDirection === 'asc' ? 1 : -1;
+    return [...filtered].sort((a, b) => {
+      switch (sortKey) {
+        case 'sources':
+          return (a.sources.length - b.sources.length) * direction;
+        case 'ips':
+          return ((a.ips?.length ?? 0) - (b.ips?.length ?? 0)) * direction;
+        default:
+          return a.name.localeCompare(b.name) * direction;
+      }
+    });
+  }, [report, searchQuery, resolvedOnly, sortKey, sortDirection]);
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchQuery, resolvedOnly, sortKey, sortDirection, pageSize, viewMode]);
+
+  const pagedSubdomains = useMemo(
+    () => visibleSubdomains.slice((page - 1) * pageSize, page * pageSize),
+    [visibleSubdomains, page, pageSize]
+  );
+
+  const groups = useMemo(
+    () => (viewMode === 'infrastructure' ? groupHosts(visibleSubdomains, groupMode) : []),
+    [viewMode, visibleSubdomains, groupMode]
+  );
+
+  const fingerprints = useMemo(
+    () => (report ? fingerprintSummary(report.subdomains) : []),
+    [report]
+  );
+
+  const allIPs = useMemo(() => uniqueIPs(visibleSubdomains), [visibleSubdomains]);
+
+  const toggleSort = (key: SortKey) => {
+    if (sortKey === key) {
+      setSortDirection((current) => (current === 'asc' ? 'desc' : 'asc'));
+    } else {
+      setSortKey(key);
+      setSortDirection('asc');
+    }
+  };
+
+  const exportCsv = () => {
+    if (!report) return;
+    const header = ['hostname', 'sources', 'ip_addresses', 'cname_aliases', 'infrastructure'];
+    const rows = visibleSubdomains.map((sub) =>
+      [
+        csvCell(sub.name),
+        csvCell(sub.sources.join(' ')),
+        csvCell((sub.ips ?? []).join(' ')),
+        csvCell((sub.cnames ?? []).join(' ')),
+        csvCell(fingerprintHost(sub).join(' ')),
+      ].join(',')
+    );
+    downloadTextFile(
+      `parallax-${report.domain}-${shortId(id)}.csv`,
+      [header.join(','), ...rows].join('\n'),
+      'text/csv'
+    );
+    notify(`Exported ${formatNumber(visibleSubdomains.length)} hostnames`, 'success');
+  };
+
   const handleDeleteScan = async () => {
     if (!id) return;
     setDeleting(true);
     try {
       await api.deleteScan(id);
+      notify('Scan record deleted', 'success');
       navigate('/history');
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Failed to delete scan');
       setDeleting(false);
+      setIsDeleteModalOpen(false);
+    }
+  };
+
+  const rerunScan = async () => {
+    if (!scanStatus) return;
+    try {
+      const response = await api.createScan({
+        target: scanStatus.target,
+        resolve: scanStatus.resolved_enabled,
+      });
+      notify(`Re-running reconnaissance for ${scanStatus.target}`, 'success');
+      navigate(`/scans/${response.id}`);
+    } catch (err: unknown) {
+      notify(err instanceof Error ? err.message : 'Failed to re-run scan', 'error');
     }
   };
 
   if (loading) {
     return (
       <div className="py-24 text-center space-y-3">
-        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-primary" />
-        <p className="text-sm text-slate-400">Loading reconnaissance investigation...</p>
+        <RefreshCw className="w-8 h-8 animate-spin mx-auto text-primary" aria-hidden="true" />
+        <p className="text-sm text-slate-500 font-mono">loading investigation…</p>
       </div>
     );
   }
 
   if (error && !scanStatus) {
     return (
-      <div className="p-8 rounded-xl bg-surface border border-surface-border text-center space-y-4 max-w-lg mx-auto">
-        <div className="w-12 h-12 rounded-full bg-rose-500/10 border border-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
-          <XCircle className="w-6 h-6" />
-        </div>
-        <h2 className="text-base font-semibold text-white">Scan Not Found</h2>
-        <p className="text-xs text-slate-400">{error}</p>
-        <Link
-          to="/history"
-          className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary hover:underline"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span>Return to Scan History</span>
-        </Link>
+      <div className="card max-w-lg mx-auto">
+        <EmptyState
+          icon={XCircle}
+          title="Scan not found"
+          description={error}
+          action={
+            <Link
+              to="/history"
+              className="inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
+            >
+              <ArrowLeft className="w-4 h-4" aria-hidden="true" />
+              Return to scan history
+            </Link>
+          }
+        />
       </div>
     );
   }
 
   const effectiveStatus = (isScanActive ? progressState : scanStatus?.status) || 'unknown';
   const targetDomain = scanStatus?.target || report?.domain || '';
+  const failedSources = report?.metadata.failed_sources ?? [];
+  const timings = report?.metadata.source_timings ?? [];
+  const resolvedCount = visibleSubdomains.filter((sub) => (sub.ips?.length ?? 0) > 0).length;
 
   return (
     <div className="space-y-6">
-      {/* Top Bar Navigation & Actions */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-        <div className="flex items-center gap-3">
-          <button
+      <div className="flex flex-col lg:flex-row lg:items-start justify-between gap-4 pb-5 border-b border-surface-border/70">
+        <div className="flex items-start gap-3 min-w-0">
+          <IconButton
+            label="Back to scan history"
+            icon={ArrowLeft}
+            variant="ghost"
             onClick={() => navigate('/history')}
-            className="p-1.5 rounded-lg border border-surface-border text-slate-400 hover:text-white hover:bg-slate-800 transition-colors"
-            title="Back to History"
-          >
-            <ArrowLeft className="w-4 h-4" />
-          </button>
-          <div>
-            <div className="flex items-center gap-2.5">
-              <h1 className="text-xl sm:text-2xl font-bold font-mono text-white tracking-tight">
+            className="mt-1 shrink-0"
+          />
+          <div className="min-w-0">
+            <p className="eyebrow text-primary/70 mb-1.5">Mission control</p>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-2xl sm:text-3xl font-bold font-mono text-white tracking-tight break-all">
                 {targetDomain}
               </h1>
               <StatusBadge status={effectiveStatus} />
             </div>
-            <p className="text-[11px] font-mono text-slate-500 mt-0.5">ID: {id}</p>
+            <p className="text-micro font-mono text-slate-600 mt-2 flex items-center gap-3 flex-wrap">
+              <span>id {shortId(id)}</span>
+              {scanStatus?.started_at && (
+                <span className="flex items-center gap-1">
+                  <Clock className="w-3 h-3" aria-hidden="true" />
+                  {formatDateTime(scanStatus.started_at)}
+                </span>
+              )}
+            </p>
           </div>
         </div>
 
-        {/* Action Controls */}
-        <div className="flex items-center gap-2 shrink-0">
+        <div className="flex items-center gap-2 flex-wrap lg:shrink-0">
+          <Button size="sm" icon={Repeat} onClick={rerunScan} disabled={!scanStatus}>
+            Re-run
+          </Button>
           {id && (
             <>
-              <a
-                href={api.getReportURL(id, 'html')}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg border border-surface-border transition-colors"
-                title="View Standalone HTML Report"
-              >
-                <FileText className="w-3.5 h-3.5 text-primary" />
-                <span>View HTML</span>
-                <ExternalLink className="w-3 h-3 text-slate-400" />
-              </a>
-
-              <a
-                href={api.getReportURL(id, 'json')}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-1.5 bg-slate-800 hover:bg-slate-700 text-white text-xs font-medium px-3 py-1.5 rounded-lg border border-surface-border transition-colors"
-                title="View Raw JSON Report"
-              >
-                <FileCode className="w-3.5 h-3.5 text-amber-400" />
-                <span>JSON</span>
-                <ExternalLink className="w-3 h-3 text-slate-400" />
-              </a>
-
-              <button
+              <ExternalButtonLink size="sm" href={api.getReportURL(id, 'html')} icon={FileText}>
+                HTML
+                <ExternalLink className="w-3 h-3 text-slate-600" aria-hidden="true" />
+              </ExternalButtonLink>
+              <ExternalButtonLink size="sm" href={api.getReportURL(id, 'json')} icon={FileCode}>
+                JSON
+                <ExternalLink className="w-3 h-3 text-slate-600" aria-hidden="true" />
+              </ExternalButtonLink>
+              <IconButton
+                label="Delete scan record"
+                icon={Trash2}
+                variant="ghost"
                 onClick={() => setIsDeleteModalOpen(true)}
-                className="p-1.5 rounded-lg border border-surface-border text-slate-400 hover:text-rose-400 hover:bg-rose-950/20 transition-colors"
-                title="Delete Scan Record"
-              >
-                <Trash2 className="w-4 h-4" />
-              </button>
+                className="hover:text-signal-anomaly"
+              />
             </>
           )}
         </div>
       </div>
 
-      {/* SSE Error Alert */}
-      {sseError && (
-        <div className="p-4 rounded-xl bg-rose-950/40 border border-rose-800/50 text-rose-300 text-xs flex items-center gap-2">
-          <XCircle className="w-4 h-4 shrink-0 text-rose-400" />
-          <span>{sseError}</span>
-        </div>
-      )}
+      {sseError && <Alert tone="error">{sseError}</Alert>}
 
-      {/* Live Telemetry Progress Section (when running or recent events present) */}
       {isScanActive && (
-        <div className="bg-surface border border-primary/30 rounded-xl p-5 space-y-4 shadow-lg animate-pulse-subtle">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Activity className="w-4 h-4 text-primary animate-spin" />
-              <h2 className="text-sm font-semibold text-white">Live Reconnaissance Pipeline</h2>
-            </div>
-            <span className="text-xs font-mono uppercase text-primary font-bold">
-              State: {progressState}
-            </span>
-          </div>
+        <>
+          <PipelineHUD
+            target={targetDomain}
+            state={progressState}
+            providers={providers}
+            rawCount={rawCount}
+            uniqueCount={uniqueCount}
+            liveCount={liveCount}
+            resolveEnabled={scanStatus?.resolved_enabled ?? false}
+          />
 
-          {/* Quick Metrics */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-2">
-            <div className="bg-slate-900/60 p-3 rounded-lg border border-surface-border">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Raw Findings</span>
-              <span className="text-lg font-bold font-mono text-white">{rawCount}</span>
-            </div>
-            <div className="bg-slate-900/60 p-3 rounded-lg border border-surface-border">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Unique Candidates</span>
-              <span className="text-lg font-bold font-mono text-white">{uniqueCount}</span>
-            </div>
-            <div className="bg-slate-900/60 p-3 rounded-lg border border-surface-border">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Verified Live Hosts</span>
-              <span className="text-lg font-bold font-mono text-white">{liveCount}</span>
-            </div>
-            <div className="bg-slate-900/60 p-3 rounded-lg border border-surface-border">
-              <span className="text-[10px] text-slate-400 uppercase tracking-wider block">Pipeline Phase</span>
-              <span className="text-sm font-bold font-mono text-primary uppercase mt-1 block">
-                {progressState}
-              </span>
-            </div>
-          </div>
-
-          {/* Provider Progress Status */}
-          {Object.keys(providers).length > 0 && (
-            <div className="space-y-2 pt-2">
-              <span className="text-xs font-medium text-slate-300 block">Provider Queries:</span>
-              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
-                {Object.values(providers).map((prov) => (
-                  <div
-                    key={prov.name}
-                    className="p-2.5 rounded-lg bg-slate-900/80 border border-surface-border flex items-center justify-between text-xs"
-                  >
-                    <span className="font-mono text-slate-200">{prov.name}</span>
-                    <div className="flex items-center gap-2">
-                      <span className="font-mono text-slate-400 text-[11px]">
-                        {prov.candidates} found
-                      </span>
-                      {prov.status === 'completed' ? (
-                        <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      ) : prov.status === 'failed' ? (
-                        <XCircle className="w-3.5 h-3.5 text-rose-400" />
-                      ) : (
-                        <div className="w-3 h-3 border border-primary border-t-transparent rounded-full animate-spin" />
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Event Stream Log */}
           {events.length > 0 && (
-            <div className="space-y-1.5 pt-2">
-              <span className="text-xs font-medium text-slate-400 flex items-center gap-1.5">
-                <Terminal className="w-3.5 h-3.5" />
-                <span>Live Event Stream</span>
-              </span>
-              <div className="bg-slate-950 rounded-lg p-3 max-h-40 overflow-y-auto font-mono text-[11px] text-slate-300 space-y-1 border border-surface-border/80">
-                {events.map((ev, idx) => (
-                  <div key={idx} className="flex items-start gap-2">
-                    <span className="text-slate-500 shrink-0">
-                      [{new Date(ev.timestamp).toLocaleTimeString()}]
-                    </span>
-                    <span className="text-primary font-semibold shrink-0">{ev.type}</span>
-                    <span className="text-slate-400 truncate">
-                      {ev.source_name ? `${ev.source_name} ` : ''}
-                      {ev.candidates !== undefined ? `(${ev.candidates} candidates) ` : ''}
-                      {ev.error ? `Error: ${ev.error}` : ''}
+            <section className="card p-4 space-y-2">
+              <h3 className="eyebrow flex items-center gap-1.5">
+                <Terminal className="w-3.5 h-3.5" aria-hidden="true" />
+                Event stream
+                {!isConnected && <span className="text-slate-600 normal-case">(polling)</span>}
+              </h3>
+              <div
+                ref={logRef}
+                className="bg-background rounded-lg p-3 max-h-48 overflow-y-auto font-mono text-micro text-slate-400 space-y-1 border border-surface-border"
+              >
+                {events.map((event, index) => (
+                  <div key={index} className="flex items-start gap-2">
+                    <span className="text-slate-700 shrink-0">{formatTime(event.timestamp)}</span>
+                    <span className="text-primary shrink-0">{event.type}</span>
+                    <span className="truncate">
+                      {event.source_name ? `${event.source_name} ` : ''}
+                      {event.candidates !== undefined ? `(${event.candidates})` : ''}
+                      {event.error ? `error: ${event.error}` : ''}
                     </span>
                   </div>
                 ))}
               </div>
-            </div>
+            </section>
           )}
-        </div>
+        </>
       )}
 
-      {/* Completed Results Summary Stats */}
       {report && (
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div className="bg-surface border border-surface-border rounded-xl p-4">
-            <span className="text-xs text-slate-400 uppercase tracking-wider block font-medium">
-              Subdomains Discovered
-            </span>
-            <span className="text-2xl font-bold font-mono text-white mt-1 block">
-              {report.total_found}
-            </span>
+        <>
+          <div className="grid grid-cols-2 xl:grid-cols-4 gap-4">
+            <StatTile
+              label="Assets"
+              value={formatNumber(report.total_found)}
+              tone="primary"
+              icon={Globe}
+              footer={
+                <Meter
+                  value={report.total_found}
+                  max={Math.max(report.metadata.raw_results, 1)}
+                  tone="primary"
+                  label="Unique assets from raw findings"
+                />
+              }
+              hint={`${formatNumber(report.metadata.raw_results)} raw findings deduplicated`}
+            />
+
+            <StatTile
+              label="Resolved"
+              value={report.resolved_enabled ? formatNumber(resolvedCount) : 'off'}
+              tone={report.resolved_enabled ? 'verified' : 'neutral'}
+              icon={CheckCircle2}
+              footer={
+                report.resolved_enabled ? (
+                  <Meter
+                    value={resolvedCount}
+                    max={Math.max(visibleSubdomains.length, 1)}
+                    tone="verified"
+                    label="Hosts with an A or AAAA record"
+                  />
+                ) : undefined
+              }
+              hint={
+                report.resolved_enabled
+                  ? `${formatNumber(report.metadata.wildcard_filtered ?? 0)} wildcard entries filtered`
+                  : 'DNS verification was disabled'
+              }
+            />
+
+            <StatTile
+              label="Elapsed"
+              value={formatDuration(report.metadata.duration_ms)}
+              tone="attention"
+              icon={Clock}
+              hint={`${formatNumber(timings.length)} providers queried in parallel`}
+            />
+
+            <StatTile
+              label="Provider health"
+              value={`${timings.length - failedSources.length}/${timings.length}`}
+              tone={failedSources.length > 0 ? 'attention' : 'verified'}
+              icon={Layers}
+              footer={
+                <Meter
+                  value={timings.length - failedSources.length}
+                  max={Math.max(timings.length, 1)}
+                  tone={failedSources.length > 0 ? 'attention' : 'verified'}
+                  label="Providers that responded"
+                />
+              }
+              hint={
+                failedSources.length > 0
+                  ? `${failedSources.length} failed, results still usable`
+                  : 'all providers responded'
+              }
+            />
           </div>
 
-          <div className="bg-surface border border-surface-border rounded-xl p-4">
-            <span className="text-xs text-slate-400 uppercase tracking-wider block font-medium">
-              DNS Verification
-            </span>
-            <span className="text-base font-bold font-mono text-emerald-400 mt-2 block">
-              {report.resolved_enabled ? 'Enabled' : 'Passive Only'}
-            </span>
-          </div>
-
-          <div className="bg-surface border border-surface-border rounded-xl p-4">
-            <span className="text-xs text-slate-400 uppercase tracking-wider block font-medium">
-              Duration
-            </span>
-            <span className="text-2xl font-bold font-mono text-white mt-1 block">
-              {report.metadata.duration_ms}ms
-            </span>
-          </div>
-
-          <div className="bg-surface border border-surface-border rounded-xl p-4">
-            <span className="text-xs text-slate-400 uppercase tracking-wider block font-medium">
-              Sources Queried
-            </span>
-            <span className="text-2xl font-bold font-mono text-white mt-1 block">
-              {report.metadata.source_timings?.length || 0}
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Subdomain Findings Inventory */}
-      {report && (
-        <div className="bg-surface border border-surface-border rounded-xl overflow-hidden shadow-lg">
-          <div className="p-4 border-b border-surface-border flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-            <div>
-              <h2 className="text-sm font-semibold text-white flex items-center gap-2">
-                <span>Discovered Hostnames</span>
-                <span className="text-xs font-mono text-slate-400">
-                  ({filteredSubdomains.length} of {report.total_found})
+          {fingerprints.length > 0 && (
+            <section className="card p-4">
+              <h2 className="eyebrow flex items-center gap-2 mb-3">
+                <Server className="w-3.5 h-3.5" aria-hidden="true" />
+                Infrastructure attribution
+                <span className="normal-case tracking-normal text-slate-600">
+                  derived from CNAME targets
                 </span>
               </h2>
-            </div>
+              <div className="flex flex-wrap gap-2">
+                {fingerprints.map(({ label, count }) => (
+                  <button
+                    key={label}
+                    onClick={() => {
+                      setViewMode('table');
+                      setSearchQuery(label === 'GitHub Pages' ? 'github.io' : label.toLowerCase());
+                    }}
+                    className="chip-alias hover:border-signal-alias transition-colors"
+                    title={`Filter hostnames pointing at ${label}`}
+                  >
+                    {label}
+                    <span className="text-slate-500">{formatNumber(count)}</span>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
 
-            <div className="flex items-center gap-3">
-              {/* Search Box */}
-              <div className="relative">
-                <Search className="w-3.5 h-3.5 absolute left-3 top-2.5 text-slate-400" />
-                <input
-                  type="text"
-                  placeholder="Filter hostnames, IPs, sources..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="pl-8 pr-3 py-1.5 bg-slate-900 border border-surface-border rounded-lg text-xs text-white placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-primary font-mono w-56 sm:w-64"
-                />
+          {failedSources.length > 0 && (
+            <Alert tone="warning" title={`${failedSources.length} provider(s) did not respond`}>
+              <ul className="mt-1 space-y-1 font-mono text-xs">
+                {failedSources.map((source) => (
+                  <li key={source.id}>
+                    <span className="text-signal-attention">{source.name}</span> — {source.health}
+                    {source.error ? `: ${source.error}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </Alert>
+          )}
+
+          {timings.length > 0 && (
+            <section className="card overflow-hidden">
+              <button
+                onClick={() => setTelemetryOpen((open) => !open)}
+                aria-expanded={telemetryOpen}
+                className="w-full p-4 flex items-center justify-between gap-2 text-left hover:bg-surface-raised/40 transition-colors"
+              >
+                <span className="text-sm font-semibold font-display text-white flex items-center gap-2">
+                  <Activity className="w-4 h-4 text-primary" aria-hidden="true" />
+                  Provider breakdown
+                  <span className="font-mono text-xs text-slate-600">({timings.length})</span>
+                </span>
+                {telemetryOpen ? (
+                  <ChevronDown className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                ) : (
+                  <ChevronRight className="w-4 h-4 text-slate-500" aria-hidden="true" />
+                )}
+              </button>
+
+              {telemetryOpen && (
+                <div className="border-t border-surface-border overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">Provider</th>
+                        <th scope="col">Status</th>
+                        <th scope="col" className="text-right">Candidates</th>
+                        <th scope="col" className="text-right">Latency</th>
+                        <th scope="col" className="w-1/3">Yield</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {[...timings]
+                        .sort((a, b) => b.candidates - a.candidates)
+                        .map((timing) => (
+                          <tr key={timing.id}>
+                            <td className="font-mono text-white">{timing.name}</td>
+                            <td>
+                              <StatusBadge status={timing.status} size="sm" />
+                            </td>
+                            <td className="text-right font-mono tabular-nums text-slate-200">
+                              {formatNumber(timing.candidates)}
+                            </td>
+                            <td className="text-right font-mono tabular-nums text-slate-500 text-xs">
+                              {formatDuration(timing.duration_ms)}
+                            </td>
+                            <td>
+                              <Meter
+                                value={timing.candidates}
+                                max={Math.max(...timings.map((item) => item.candidates), 1)}
+                                tone="primary"
+                                label={`${timing.name} candidate yield`}
+                              />
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          )}
+
+          <section className="card overflow-hidden">
+            <div className="p-4 border-b border-surface-border space-y-3">
+              <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+                <div className="flex items-center gap-3 flex-wrap">
+                  <h2 className="text-sm font-semibold font-display text-white">Asset inventory</h2>
+                  <span className="font-mono text-xs text-slate-600">
+                    {formatNumber(visibleSubdomains.length)} / {formatNumber(report.total_found)}
+                  </span>
+
+                  {/* View switch: flat list vs co-hosting clusters. */}
+                  <div
+                    role="tablist"
+                    aria-label="Inventory view"
+                    className="flex items-center gap-0.5 p-0.5 rounded-lg bg-background/70 border border-surface-border"
+                  >
+                    {([
+                      ['table', 'Table', Table2],
+                      ['infrastructure', 'Infrastructure', Network],
+                    ] as const).map(([mode, label, Icon]) => (
+                      <button
+                        key={mode}
+                        role="tab"
+                        aria-selected={viewMode === mode}
+                        onClick={() => setViewMode(mode)}
+                        className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
+                          viewMode === mode
+                            ? 'bg-primary/15 text-primary'
+                            : 'text-slate-500 hover:text-slate-300'
+                        }`}
+                      >
+                        <Icon className="w-3.5 h-3.5" aria-hidden="true" />
+                        {label}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                {/* Export command bar. */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <Button
+                    size="sm"
+                    icon={copiedItem === '__hosts__' ? Check : Copy}
+                    onClick={() =>
+                      copyText(
+                        visibleSubdomains.map((sub) => sub.name).join('\n'),
+                        '__hosts__',
+                        `Copied ${formatNumber(visibleSubdomains.length)} hostnames`
+                      )
+                    }
+                    disabled={visibleSubdomains.length === 0}
+                  >
+                    Hosts
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    icon={copiedItem === '__ips__' ? Check : Server}
+                    onClick={() =>
+                      copyText(
+                        allIPs.join('\n'),
+                        '__ips__',
+                        `Copied ${formatNumber(allIPs.length)} unique IPs`
+                      )
+                    }
+                    disabled={allIPs.length === 0}
+                    title="Copy every distinct IP address in view"
+                  >
+                    IPs
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    icon={Download}
+                    onClick={exportCsv}
+                    disabled={visibleSubdomains.length === 0}
+                  >
+                    CSV
+                  </Button>
+                </div>
               </div>
 
-              {/* Copy All Button */}
-              <button
-                onClick={handleCopyAll}
-                className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-white rounded-lg text-xs font-medium border border-surface-border transition-colors shrink-0"
-                title="Copy all hostnames to clipboard"
-              >
-                {copiedAll ? <Check className="w-3.5 h-3.5 text-emerald-400" /> : <Copy className="w-3.5 h-3.5" />}
-                <span>{copiedAll ? 'Copied' : 'Copy All'}</span>
-              </button>
-            </div>
-          </div>
+              <div className="flex items-center gap-3 flex-wrap">
+                <div className="relative flex-1 min-w-[14rem]">
+                  <Search
+                    className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 pointer-events-none"
+                    aria-hidden="true"
+                  />
+                  <input
+                    type="search"
+                    value={searchQuery}
+                    onChange={(event) => setSearchQuery(event.target.value)}
+                    placeholder="Filter hostnames, IPs, CNAMEs, sources…"
+                    aria-label="Filter hostnames"
+                    className="input-mono pl-8 py-1.5 text-xs"
+                  />
+                </div>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-xs">
-              <thead className="bg-slate-900/60 text-slate-400 uppercase font-medium tracking-wider text-[11px] border-b border-surface-border">
-                <tr>
-                  <th className="py-3 px-4">Hostname</th>
-                  <th className="py-3 px-4">Attribution Sources</th>
-                  {report.resolved_enabled && <th className="py-3 px-4">IP Addresses</th>}
-                  {report.resolved_enabled && <th className="py-3 px-4">CNAME Aliases</th>}
-                  <th className="py-3 px-4 text-right">Copy</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-surface-border">
-                {filteredSubdomains.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="py-8 text-center text-slate-400">
-                      No subdomains match your search criteria.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredSubdomains.map((sub) => (
-                    <tr key={sub.name} className="hover:bg-slate-800/30 transition-colors">
-                      <td className="py-2.5 px-4 font-mono font-medium text-white">
-                        {sub.name}
-                      </td>
-                      <td className="py-2.5 px-4">
-                        <div className="flex flex-wrap gap-1">
-                          {sub.sources.map((src) => (
-                            <span
-                              key={src}
-                              className="px-1.5 py-0.5 rounded text-[10px] bg-slate-800 text-slate-300 font-mono border border-slate-700"
-                            >
-                              {src}
-                            </span>
-                          ))}
-                        </div>
-                      </td>
-                      {report.resolved_enabled && (
-                        <td className="py-2.5 px-4 font-mono text-[11px] text-slate-300">
-                          {sub.ips && sub.ips.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {sub.ips.map((ip) => (
-                                <span
-                                  key={ip}
-                                  className="px-1.5 py-0.5 rounded bg-sky-950/50 text-sky-300 border border-sky-800/50 text-[10px]"
-                                >
-                                  {ip}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-slate-500">-</span>
-                          )}
-                        </td>
-                      )}
-                      {report.resolved_enabled && (
-                        <td className="py-2.5 px-4 font-mono text-[11px] text-slate-300">
-                          {sub.cnames && sub.cnames.length > 0 ? (
-                            <div className="flex flex-wrap gap-1">
-                              {sub.cnames.map((cn) => (
-                                <span
-                                  key={cn}
-                                  className="px-1.5 py-0.5 rounded bg-amber-950/50 text-amber-300 border border-amber-800/50 text-[10px]"
-                                >
-                                  {cn}
-                                </span>
-                              ))}
-                            </div>
-                          ) : (
-                            <span className="text-slate-500">-</span>
-                          )}
-                        </td>
-                      )}
-                      <td className="py-2.5 px-4 text-right">
-                        <button
-                          onClick={() => handleCopySingle(sub.name)}
-                          className="p-1 hover:text-white text-slate-400 transition-colors"
-                          title="Copy hostname"
-                        >
-                          {copiedItem === sub.name ? (
-                            <Check className="w-3.5 h-3.5 text-emerald-400" />
-                          ) : (
-                            <Copy className="w-3.5 h-3.5" />
-                          )}
-                        </button>
-                      </td>
-                    </tr>
-                  ))
+                {report.resolved_enabled && (
+                  <label className="flex items-center gap-2 text-xs text-slate-400 cursor-pointer whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={resolvedOnly}
+                      onChange={(event) => setResolvedOnly(event.target.checked)}
+                      className="w-3.5 h-3.5 rounded border-surface-border bg-background text-primary focus:ring-primary focus:ring-offset-background"
+                    />
+                    Resolved only
+                  </label>
                 )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+
+                {viewMode === 'infrastructure' && (
+                  <div className="flex items-center gap-1.5">
+                    <span className="eyebrow">Cluster by</span>
+                    {(['ip', 'subnet', 'cname'] as GroupMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        onClick={() => setGroupMode(mode)}
+                        aria-pressed={groupMode === mode}
+                        className={`px-2 py-1 rounded-md text-micro font-mono border transition-colors ${
+                          groupMode === mode
+                            ? 'bg-primary/12 text-primary border-primary/30'
+                            : 'bg-background/60 text-slate-500 border-surface-border hover:text-slate-300'
+                        }`}
+                      >
+                        {GROUP_LABELS[mode]}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {visibleSubdomains.length === 0 ? (
+              <EmptyState
+                icon={Search}
+                compact
+                title="No matching hostnames"
+                description={
+                  searchQuery || resolvedOnly
+                    ? 'Try clearing the filters to see the full result set.'
+                    : 'This scan returned no subdomains.'
+                }
+                action={
+                  (searchQuery || resolvedOnly) && (
+                    <Button
+                      size="sm"
+                      onClick={() => {
+                        setSearchQuery('');
+                        setResolvedOnly(false);
+                      }}
+                    >
+                      Clear filters
+                    </Button>
+                  )
+                }
+              />
+            ) : viewMode === 'infrastructure' ? (
+              <ul className="divide-y divide-surface-border/60 max-h-[40rem] overflow-y-auto">
+                {groups.map((group) => (
+                  <li key={group.key} className="p-4">
+                    <div className="flex items-center justify-between gap-3 mb-2">
+                      <span className="flex items-center gap-2 min-w-0">
+                        <Network className="w-3.5 h-3.5 text-signal-alias shrink-0" aria-hidden="true" />
+                        <code className="font-mono text-sm text-white truncate">{group.key}</code>
+                      </span>
+                      <span className="chip-neutral shrink-0">
+                        {formatNumber(group.hosts.length)} host
+                        {group.hosts.length === 1 ? '' : 's'}
+                      </span>
+                    </div>
+
+                    <div className="flex flex-wrap gap-1.5 pl-5">
+                      {group.hosts.map((host) => (
+                        <button
+                          key={host.name}
+                          onClick={() => copyText(host.name, host.name, 'Hostname copied')}
+                          className="font-mono text-micro px-2 py-1 rounded bg-background/70 border border-surface-border text-slate-400 hover:text-white hover:border-primary/40 transition-colors"
+                          title="Click to copy"
+                        >
+                          {host.name}
+                        </button>
+                      ))}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            ) : (
+              <>
+                <div className="overflow-x-auto">
+                  <table className="data-table">
+                    <thead>
+                      <tr>
+                        <th scope="col">
+                          <button
+                            onClick={() => toggleSort('name')}
+                            className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+                          >
+                            Hostname
+                            <ArrowUpDown className="w-3 h-3" aria-hidden="true" />
+                          </button>
+                        </th>
+                        <th scope="col">
+                          <button
+                            onClick={() => toggleSort('sources')}
+                            className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+                          >
+                            Sources
+                            <ArrowUpDown className="w-3 h-3" aria-hidden="true" />
+                          </button>
+                        </th>
+                        {report.resolved_enabled && (
+                          <th scope="col">
+                            <button
+                              onClick={() => toggleSort('ips')}
+                              className="inline-flex items-center gap-1 hover:text-primary transition-colors"
+                            >
+                              Addresses
+                              <ArrowUpDown className="w-3 h-3" aria-hidden="true" />
+                            </button>
+                          </th>
+                        )}
+                        {report.resolved_enabled && <th scope="col">CNAME / Infra</th>}
+                        <th scope="col" className="text-right" />
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pagedSubdomains.map((sub: Subdomain) => {
+                        const marks = fingerprintHost(sub);
+                        return (
+                          <tr key={sub.name}>
+                            <td className="font-mono font-medium text-white whitespace-nowrap pr-6">
+                              {sub.name}
+                            </td>
+                            <td>
+                              <ChipList values={sub.sources} className="chip-neutral" />
+                            </td>
+                            {report.resolved_enabled && (
+                              <td>
+                                <ChipList values={sub.ips ?? []} className="chip-intel" />
+                              </td>
+                            )}
+                            {report.resolved_enabled && (
+                              <td>
+                                <div className="space-y-1">
+                                  <ChipList values={sub.cnames ?? []} className="chip-alias" />
+                                  {marks.length > 0 && (
+                                    <div className="flex flex-wrap gap-1">
+                                      {marks.map((mark) => (
+                                        <span key={mark} className="chip-verified">
+                                          {mark}
+                                        </span>
+                                      ))}
+                                    </div>
+                                  )}
+                                </div>
+                              </td>
+                            )}
+                            <td className="text-right">
+                              <IconButton
+                                label={`Copy ${sub.name}`}
+                                icon={copiedItem === sub.name ? Check : Copy}
+                                variant="ghost"
+                                onClick={() => copyText(sub.name, sub.name, 'Hostname copied')}
+                              />
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+
+                <Pagination
+                  page={page}
+                  pageSize={pageSize}
+                  totalItems={visibleSubdomains.length}
+                  onPageChange={setPage}
+                  onPageSizeChange={setPageSize}
+                  itemLabel="hostnames"
+                />
+              </>
+            )}
+          </section>
+        </>
       )}
 
-      {/* Delete Confirmation Modal */}
+      {!report && !isScanActive && scanStatus?.status === 'failed' && (
+        <Alert tone="error" title="Scan failed">
+          This reconnaissance run did not complete, so no results were stored. Re-run the scan to try
+          again.
+        </Alert>
+      )}
+
       <Modal
         isOpen={isDeleteModalOpen}
         onClose={() => setIsDeleteModalOpen(false)}
         onConfirm={handleDeleteScan}
-        title="Delete Reconnaissance Record"
-        message={`Are you sure you want to permanently delete the scan record for ${targetDomain}? This action cannot be undone.`}
-        confirmLabel={deleting ? 'Deleting...' : 'Delete Scan'}
-        isDestructive={true}
+        busy={deleting}
+        title="Delete reconnaissance record"
+        message={`Permanently delete the scan record for ${targetDomain}? All stored subdomains and telemetry for this run will be erased. This cannot be undone.`}
+        confirmLabel={deleting ? 'Deleting…' : 'Delete scan'}
+        isDestructive
       />
     </div>
   );

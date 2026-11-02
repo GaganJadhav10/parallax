@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"github.com/lumiaurora/subscan/internal/buildinfo"
+	"github.com/GaganJadhav10/parallax/internal/buildinfo"
 )
 
 func TestExecuteRootHelp(t *testing.T) {
@@ -19,7 +19,7 @@ func TestExecuteRootHelp(t *testing.T) {
 	if !strings.Contains(out.String(), Banner) {
 		t.Errorf("expected banner in help output, got: %s", out.String())
 	}
-	if !strings.Contains(out.String(), "reconlens <command>") {
+	if !strings.Contains(out.String(), "parallax <command>") {
 		t.Errorf("expected usage in help output")
 	}
 }
@@ -44,8 +44,8 @@ func TestExecuteVersion(t *testing.T) {
 	if code != 0 {
 		t.Fatalf("expected code 0, got %d", code)
 	}
-	if !strings.Contains(out.String(), "ReconLens") {
-		t.Errorf("expected ReconLens in version output, got: %s", out.String())
+	if !strings.Contains(out.String(), "Parallax") {
+		t.Errorf("expected Parallax in version output, got: %s", out.String())
 	}
 
 	// Test --json flag on version

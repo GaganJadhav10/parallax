@@ -10,12 +10,12 @@ import (
 	"strings"
 	"time"
 
+	"github.com/GaganJadhav10/parallax/internal/models"
 	"github.com/google/uuid"
-	"github.com/lumiaurora/subscan/internal/models"
 	_ "modernc.org/sqlite"
 )
 
-// SQLiteStorage provides SQLite-backed persistent storage for ReconLens.
+// SQLiteStorage provides SQLite-backed persistent storage for Parallax.
 type SQLiteStorage struct {
 	db   *sql.DB
 	path string

@@ -15,8 +15,8 @@ jobs:
   live:
     runs-on: ubuntu-latest
     env:
-      SUBSCAN_RUN_LIVE_TESTS: "1"
-      SUBSCAN_LIVE_DOMAIN: ${{ inputs.domain }}
+      PARALLAX_RUN_LIVE_TESTS: "1"
+      PARALLAX_LIVE_DOMAIN: ${{ inputs.domain }}
 
     steps:
       - name: Check out repository
